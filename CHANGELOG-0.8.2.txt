@@ -1,0 +1,170 @@
+MARKETER COMPANION v0.8.2 — 08 Aug 2026
+=======================================
+
+Correctness pass over the blended report, a rebuilt date picker, and the
+Chrome Web Store packaging. Everything below is in the shipped package; run
+`node build.js` to reproduce it.
+
+
+1. BLENDED REPORT — THE NUMBERS WERE WRONG
+==========================================
+Three separate defects, all of which made a card disagree with its own label.
+
+  Key events counted all traffic while the card divided them by organic
+  sessions and printed "of organic". A property where organic is 28% of
+  traffic was reporting a conversion rate roughly three times too high. Key
+  events now follow the same segment as sessions, in the totals, the previous
+  period and the daily trend.
+
+  "Organic" matched /organic/i, which also swept in Organic Social, Organic
+  Video and Organic Shopping. It is now an exact match on GA4's "Organic
+  Search" channel, so the figure reconciles with the Search Console clicks
+  sitting next to it.
+
+  Sessions are session-scoped, so a session crossing midnight is counted in
+  both days. The KPI cards summed the date-split trend and therefore always
+  overstated the total — 1,059 where GA4 and the panel's own channel table
+  said 1,057. The cards now use a date-free request; the trend line still
+  uses the date split, which is correct for a per-day chart.
+
+
+2. CALLS — ORGANIC SEARCH, NOT ALL CALLS
+========================================
+The Calls card summed every call from a date-grouped request, and blend sent
+different parameters from the CallRail tab for the same endpoint — which
+hashed to a different cache entry, so the blended report could sit on an empty
+result while the CallRail tab showed calls perfectly.
+
+  Blend's request is now byte-identical to the CallRail panel's, so they share
+  a cache entry and blend honours the same device/lead-status/duration filters.
+
+  The card counts organic *search* calls from a source-grouped request. The
+  word "organic" alone was not enough: Facebook Organic is organic social, not
+  organic search, and counting it against Search Console clicks is meaningless.
+  A source now has to name a search engine (Google, Bing, Yahoo, DuckDuckGo,
+  Yandex, Baidu, Ecosia, Startpage, Qwant, Brave, Naver and others) or say
+  "organic search" outright, and known social, video and community platforms
+  are rejected even when they say "Organic".
+
+  Verified against 30 real source labels.
+
+
+3. SEGMENT SELECTOR (SETTINGS)
+==============================
+Settings -> Blended report -> Default view. Eight segments: Organic search
+(default), Paid search, All paid, All organic, Social, Direct, Referral, All
+traffic.
+
+Each segment defines itself on both sides at once — one rule for the GA4
+channel group, one for the CallRail source — so sessions, key events and calls
+always describe the same audience. Card titles and the key-event sub-label
+follow the segment, so a percentage is never mislabelled. Changing it
+re-renders what is already loaded; it does not refetch.
+
+
+4. NOTHING FETCHES UNTIL YOU PRESS RUN
+======================================
+Changing a property, GA4 property, CallRail account or company, the date
+range, the compare toggle or a key-event chip used to trigger a fetch. Five
+auto-run paths removed. Run and the refresh icon are now the only things that
+spend API quota. The CallRail company list still loads when an account is
+picked, because the list has to exist before it can be chosen from.
+
+
+5. SELECTIONS PERSIST FOR THE BROWSER SESSION
+=============================================
+Search Console property, GA4 property, CallRail account and CallRail company
+are kept in chrome.storage.session — they survive closing and reopening the
+popup, and reset when the browser closes.
+
+Two bugs fixed along the way. These lists load asynchronously, and assigning
+select.value before the options exist silently falls back to the first entry,
+which is why reopening landed on a different account each time; the choice is
+now re-applied on every repopulation. And the GA4 and CallRail selects are set
+programmatically from the blended report without firing a change event, so
+nothing observed them; they record themselves explicitly instead. A GA4
+property restores through the real setter so the picker label and key-event
+list follow it. "All companies" is storable even though its value is empty.
+
+
+6. DATE PICKER
+==============
+  The calendar is lifted out of the scrolling panel and positioned against the
+  viewport, so it is no longer clipped by the panel it lives in.
+
+  It was painting outside its own border: the positioner clamps max-height to
+  the space available, but nothing declared overflow, so days and the footer
+  spilled over the page behind it. The popover is now a flex column with a
+  scrolling day grid.
+
+  Selected days lost all highlighting once the calendar moved to <body>,
+  because 11 day and nav rules were scoped to .main. Rescoped so start, in-range
+  and end render correctly wherever the calendar is mounted.
+
+
+7. KEY EVENTS
+=============
+Clicking a chip before the event list had loaded stored a single event, turning
+a deselect into "show only this one" — which read as the card emptying out.
+That click is now ignored until the list exists. Clearing the last remaining
+event returns to "all" rather than leaving an empty selection with no way back.
+
+
+8. INTERFACE
+============
+  One action bar in every panel header: secondary links, Export, refresh icon,
+  then Run. Same word, same place, same weight, on all seven panels. GA4's
+  "Load" at the bottom of the card and the full-width buttons on Indexing,
+  On-Page and Structured Data are gone.
+
+  Panels show what they would return and when they last returned it, instead
+  of two-thirds of empty space. On-Page and Structured Data are excluded — they
+  scan the active tab on open, so the card would never be read.
+
+  Compare is a switch and one word, inside the date range card it belongs to,
+  which gave the date field the room it needed to print a full custom range
+  without truncating to "04 A...".
+
+  GA4 dimensions 4 -> 30 and metrics 4 -> 18, grouped and named the way GA4
+  names them. The metric select was previously dead — never read by any code —
+  and now ranks and labels the breakdown table. Rates, durations and per-user
+  averages format correctly rather than printing 0.6432 for 64.3%.
+
+  The Search data (finalized/fresh) control is gone; Search Console is always
+  queried for finalized data. The two-day lag it applied to the date pickers
+  is retained.
+
+  Blended report is the landing panel.
+
+
+9. AUTHENTICATION
+=================
+Alternate-account sign-in never completed. The token exchange sent no
+client_secret, which a Google "Web application" client rejects, so the OAuth
+window closed successfully and nothing was ever stored. The flow now follows
+CLIENT_SECRET: set, it uses authorisation code + PKCE with refresh tokens;
+blank, it uses the implicit flow with silent prompt=none renewal and no secret
+in the package. Sign-in outcomes are recorded, so a failure that happens after
+the popup is destroyed is reported the next time it opens. A keepalive holds
+the service worker up during the flow.
+
+
+10. CHROME WEB STORE PACKAGING
+==============================
+  Removed update_url from the manifest — the store rejects any package
+  containing it.
+
+  Description shortened from 150 to 113 characters; the limit is 132.
+
+  build.js produces the upload package. It validates first and refuses to
+  build on: update_url, an over-length description or name, a bad version
+  string, eval, new Function, debugger, inline <script>, inline event handlers,
+  remote script tags, or popup.html and panel.html drifting apart. It then
+  copies only the 13 files the extension actually loads into dist/ and zips
+  them, so .claude/, .playwright-cli/, changelogs, SUBMISSION.md and build.js
+  never ship.
+
+  Added https://oauth2.googleapis.com/* to host_permissions — the OAuth token,
+  refresh and revoke calls were being made without it.
+
+See SUBMISSION.md for the pre-submit checklist and the dashboard answers.

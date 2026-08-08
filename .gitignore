@@ -1,0 +1,13 @@
+# Build output — regenerate with `node build.js`
+dist/
+*.zip
+
+# Local tooling
+.claude/
+.playwright-cli/
+node_modules/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
