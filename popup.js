@@ -1156,11 +1156,51 @@ const GA_STORAGE_KEYS = {
 };
 const GA_OVERVIEW_METRICS = ['sessions', 'keyEvents', 'activeUsers', 'screenPageViews', 'eventCount'];
 const GA_KEY_EVENT_METRICS = ['keyEvents', 'eventCount', 'activeUsers', 'sessions'];
-const GA_DEFAULT_BREAKDOWN = 'sessionDefaultChannelGroup';
+// Key events are split by channel the way GA4's own Advertising -> Key events ->
+// Key event performance report does it: by Primary channel group, on an
+// attribution basis. That report spreads credit for a key event across the whole
+// conversion path using the property's reporting attribution model, so it
+// disagrees with Reports -> Acquisition, which is session-scoped and gives the
+// whole key event to the last non-direct click inside the session. The
+// Advertising figures are the ones people quote as conversions, so they are what
+// this panel has to reproduce.
+const GA_ATTRIBUTION_CHANNEL_DIM = 'primaryChannelGroup';
+const GA_SESSION_CHANNEL_DIM = 'sessionDefaultChannelGroup';
+const GA_ATTRIBUTION_DIMS = new Set([GA_ATTRIBUTION_CHANNEL_DIM, 'defaultChannelGroup']);
+// Attribution-scoped dimensions only join metrics that carry conversion credit.
+// Sessions, users and raw event counts are stored on a different basis, and GA4
+// rejects the whole request rather than returning a partial one, so they are
+// dropped from anything that breaks down by an attributed channel.
+const GA_ATTRIBUTION_METRICS = new Set([
+  'keyEvents',
+  'totalRevenue',
+  'advertiserAdCost',
+  'advertiserAdClicks',
+  'advertiserAdImpressions'
+]);
+const GA_DEFAULT_BREAKDOWN = GA_ATTRIBUTION_CHANNEL_DIM;
+function gaIsAttributionDim(name){ return GA_ATTRIBUTION_DIMS.has(name); }
+function gaUsesAttribution(dimensions){ return (dimensions || []).some(gaIsAttributionDim); }
+function gaCompatibleMetrics(dimensions, metrics){
+  if (!gaUsesAttribution(dimensions)) return metrics;
+  const kept = (metrics || []).filter(name => GA_ATTRIBUTION_METRICS.has(name));
+  return kept.length ? kept : ['keyEvents'];
+}
+// Under a data-driven model a key event is credited fractionally, which is why
+// GA4 prints these to two decimals. Whole numbers stay whole so a last-click
+// property does not suddenly grow ".00" everywhere.
+function formatAttributedValue(value){
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return '0';
+  return Number.isInteger(num) ? num.toLocaleString() : formatMetricValue(num, 'number', 2);
+}
 // Friendly names, matching what GA4 itself calls these fields. The picker shows
 // these instead of the raw API ids, and the report reuses them in its headings.
 const GA_DIM_LABELS = {
   date: "Date",
+  // Traffic — attribution (what Advertising → Key event performance reports on)
+  primaryChannelGroup: "Primary channel group",
+  defaultChannelGroup: "Default channel group",
   // Traffic — session (last touch)
   sessionDefaultChannelGroup: "Session default channel group",
   sessionSource: "Session source",
@@ -1281,7 +1321,17 @@ async function gaHydrateState(){
     ? stored[GA_STORAGE_KEYS.selections]
     : {};
   GA.mode = stored?.[GA_STORAGE_KEYS.mode] === 'keyEvents' ? 'keyEvents' : 'overview';
-  GA.breakdown = stored?.[GA_STORAGE_KEYS.breakdown] || GA_DEFAULT_BREAKDOWN;
+  // The key-event breakdown used to be session-scoped with nothing else on
+  // offer, so a stored session channel group is the old default rather than a
+  // deliberate choice. Move it onto the attributed dimension the Advertising
+  // report uses; anything else the user picked is left alone.
+  const storedBreakdown = stored?.[GA_STORAGE_KEYS.breakdown];
+  GA.breakdown = (!storedBreakdown || storedBreakdown === GA_SESSION_CHANNEL_DIM)
+    ? GA_DEFAULT_BREAKDOWN
+    : storedBreakdown;
+  if (storedBreakdown && storedBreakdown !== GA.breakdown){
+    void gaSetStored({ [GA_STORAGE_KEYS.breakdown]: GA.breakdown });
+  }
   const breakdown = $('gaKeyBreakdown');
   if (breakdown) breakdown.value = GA.breakdown;
   gaSyncModeUi();
@@ -1762,6 +1812,27 @@ async function gaFetchReport(payload){
   if (!r.ok) throw apiErrorFromResponse(r, 'GA4 error');
   return { data: r.data, cache: r.cache || null };
 }
+// GA4 refuses dimension/metric mixes it does not store together, and which
+// attributed combinations a property will serve depends on how that property is
+// configured. Rather than leave the panel empty, drop back to the session-scoped
+// breakdown and let the caller say which basis is on screen.
+function gaIsCompatibilityError(err){
+  return /incompat|not compatible|cannot be (used|queried)|INVALID_ARGUMENT|invalid argument/i
+    .test(String(err?.message || err || ''));
+}
+async function gaFetchAttributedReport(payload, fallbackPayload){
+  try{
+    const result = await gaFetchReport(payload);
+    return Object.assign({}, result, { attributed: true, attributionError: null });
+  }catch(err){
+    if (!fallbackPayload || !gaIsCompatibilityError(err)) throw err;
+    const result = await gaFetchReport(fallbackPayload);
+    return Object.assign({}, result, {
+      attributed: false,
+      attributionError: String(err?.message || err)
+    });
+  }
+}
 async function gaFetchKeyEventBundle({ propertyId, startDate, endDate, eventNames, breakdown, forceRefresh=false }){
   const base = {
     propertyId,
@@ -1773,6 +1844,14 @@ async function gaFetchKeyEventBundle({ propertyId, startDate, endDate, eventName
       values: eventNames
     }
   };
+  const breakdownDims = [breakdown];
+  const breakdownPayload = Object.assign({}, base, {
+    dimensions: breakdownDims,
+    metrics: gaCompatibleMetrics(breakdownDims, GA_KEY_EVENT_METRICS),
+    rowLimit: 50,
+    orderByMetric: 'keyEvents',
+    forceRefresh
+  });
   const [eventTotals, trend, breakdownData] = await Promise.all([
     gaFetchReport(Object.assign({}, base, {
       dimensions: ['eventName'],
@@ -1781,17 +1860,22 @@ async function gaFetchKeyEventBundle({ propertyId, startDate, endDate, eventName
       forceRefresh
     })),
     gaFetchReport(Object.assign({}, base, { dimensions: ['date'], forceRefresh })),
-    gaFetchReport(Object.assign({}, base, {
-      dimensions: [breakdown],
-      rowLimit: 50,
-      orderByMetric: 'keyEvents',
-      forceRefresh
-    }))
+    gaFetchAttributedReport(breakdownPayload, gaUsesAttribution(breakdownDims)
+      ? Object.assign({}, breakdownPayload, {
+          dimensions: [GA_SESSION_CHANNEL_DIM],
+          metrics: GA_KEY_EVENT_METRICS
+        })
+      : null)
   ]);
   return {
     eventTotals: eventTotals.data,
     trend: trend.data,
     breakdown: breakdownData.data,
+    // What the breakdown actually came back on, which is not the requested
+    // dimension when the attributed request had to fall back.
+    breakdownDim: breakdownData.attributed === false ? GA_SESSION_CHANNEL_DIM : breakdown,
+    attributed: breakdownData.attributed !== false,
+    attributionError: breakdownData.attributionError || null,
     cache: combineCacheMeta([eventTotals.cache, trend.cache, breakdownData.cache])
   };
 }
@@ -2248,7 +2332,11 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
   const series = gaMetricSeries(currBundle.trend, 'keyEvents');
   const prevSeries = gaHasRows(prevBundle?.trend) ? gaMetricSeries(prevBundle.trend, 'keyEvents') : [];
   const selectionLabel = meta.eventNames.length === 1 ? meta.eventNames[0] : `${meta.eventNames.length} events selected`;
-  const breakdownLabel = GA_DIM_LABELS[meta.breakdown] || meta.breakdown;
+  // The breakdown can come back on a different dimension than the one asked for
+  // when GA4 refused the attributed combination, so label what actually arrived.
+  const breakdownDim = currBundle.breakdownDim || meta.breakdown;
+  const breakdownLabel = GA_DIM_LABELS[breakdownDim] || breakdownDim;
+  const breakdownAttributed = gaIsAttributionDim(breakdownDim);
 
   const currEvents = gaMetricAccessor(currBundle.eventTotals, 'keyEvents');
   const prevEventsAccessor = gaMetricAccessor(prevBundle?.eventTotals, 'keyEvents');
@@ -2267,15 +2355,16 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
           label,
           value,
           prevValue,
-          displayValue: formatMetricValue(value),
+          displayValue: formatAttributedValue(value),
           delta: prevValue ? metricDelta(value, prevValue, { digits:0 }) : { text:'', cls:'' }
         };
       })
     : [];
 
+  const isChannelBreakdown = breakdownAttributed || breakdownDim === GA_SESSION_CHANNEL_DIM;
   const channelAgg = new Map();
-  (meta.breakdown === 'sessionDefaultChannelGroup'
-    ? gaReportRows(currBundle.breakdown, ['keyEvents', 'eventCount'])
+  (isChannelBreakdown
+    ? gaReportRows(currBundle.breakdown, ['keyEvents'])
     : []
   ).forEach(row => {
     const key = row.key || '';
@@ -2285,12 +2374,12 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
   const keyChannelRows = Array.from(channelAgg.values()).sort((a,b) => b.keyEvents - a.keyEvents);
   const keyChannelSection = keyChannelRows.length ? {
     type: 'compare',
-    title: 'Key events by default channel group',
+    title: `Key events by ${breakdownLabel.toLowerCase()}`,
     items: keyChannelRows.map(row => ({
       label: row.key,
       value: row.keyEvents,
       prevValue: 0,
-      displayValue: formatMetricValue(row.keyEvents),
+      displayValue: formatAttributedValue(row.keyEvents),
       delta: { text:'', cls:'' }
     }))
   } : null;
@@ -2302,12 +2391,17 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
     eyebrow: 'GA4',
     title: 'Key events',
     rangeLabel: `${meta.start} → ${meta.end}`,
-    subtitle: selectionLabel,
-    badges: [`Breakdown: ${breakdownLabel}`],
+    subtitle: currBundle.attributionError
+      ? `${selectionLabel} — GA4 would not serve the attributed breakdown for this property, so the channel split below is session-scoped and will not match Advertising → Key event performance.`
+      : selectionLabel,
+    badges: [
+      `Breakdown: ${breakdownLabel}`,
+      breakdownAttributed ? 'Attributed · matches Advertising → Key event performance' : null
+    ].filter(Boolean),
     kpis: [
       {
         label: 'Key events',
-        value: formatMetricValue(sums.keyEvents),
+        value: formatAttributedValue(sums.keyEvents),
         delta: metricDelta(sums.keyEvents, prevSums?.keyEvents)
       },
       {
@@ -2347,7 +2441,7 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
     ]
   }));
 
-  gaSetExport(`ga4-key-events-${meta.breakdown}-${meta.start}-${meta.end}.csv`, gaToCSV(currBundle.breakdown));
+  gaSetExport(`ga4-key-events-${breakdownDim}-${meta.start}-${meta.end}.csv`, gaToCSV(currBundle.breakdown));
 }
 function gaReportTableSection(title, data){
   if (!gaHasRows(data)) return null;
@@ -6009,11 +6103,29 @@ async function blendFetchAll({ forceRefresh=false } = {}){
     dimensions:['eventName'], metrics:['keyEvents', 'eventCount'],
     inListFilter:keyFilter, rowLimit:100, orderByMetric:'keyEvents'
   }));
-  add('gaEventsByChannel', propertyId && Object.assign({}, gaBase, {
+  // Key events per channel follow the Advertising → Key event performance basis,
+  // so the chips here filter on attributed credit rather than session channel.
+  const keyChannelDims = ['eventName', GA_ATTRIBUTION_CHANNEL_DIM];
+  const keyChannelBase = {
     startDate:range.start, endDate:range.end,
-    dimensions:['eventName', 'sessionDefaultChannelGroup'], metrics:['keyEvents', 'eventCount'],
     inListFilter:keyFilter, rowLimit:400, orderByMetric:'keyEvents'
-  }));
+  };
+  jobs.gaEventsByChannel = propertyId ? (async () => {
+    const attributed = await blendSend(Object.assign({}, gaBase, keyChannelBase, {
+      dimensions:keyChannelDims,
+      metrics:gaCompatibleMetrics(keyChannelDims, ['keyEvents', 'eventCount'])
+    }));
+    if (attributed.ok || !gaIsCompatibilityError({ message: attributed.error })){
+      return Object.assign({}, attributed, { attributed:true, attributionError:null });
+    }
+    // The property will not serve the attributed split. A session-scoped table
+    // is still worth showing, as long as the section says that is what it is.
+    const fallback = await blendSend(Object.assign({}, gaBase, keyChannelBase, {
+      dimensions:['eventName', GA_SESSION_CHANNEL_DIM],
+      metrics:['keyEvents', 'eventCount']
+    }));
+    return Object.assign({}, fallback, { attributed:false, attributionError:attributed.error });
+  })() : Promise.resolve(null);
 
   // --- CallRail ---
   // Match the CallRail panel's request exactly. It sends the filter fields and
@@ -6306,6 +6418,11 @@ function blendShape(raw){
     ga: {
       channels: Array.from(new Set(gaTrend.map(row => row.dims?.[1]).filter(Boolean))).sort(),
       byChannel: blendGaRows(raw.gaEventsByChannel, ['keyEvents', 'eventCount']),
+      // The key-event split is attributed, so its channel names come from a
+      // different dimension than the session trend above and have to be listed
+      // from the rows themselves.
+      byChannelAttributed: raw.gaEventsByChannel ? raw.gaEventsByChannel.attributed !== false : true,
+      byChannelError: raw.gaEventsByChannel?.attributionError || null,
       breakdown: blendGaRows(raw.gaBreak, ['sessions', 'keyEvents']),
       breakdownPrev: blendGaRows(raw.gaBreakPrev, ['sessions', 'keyEvents']),
       events: blendGaRows(raw.gaEvents, ['keyEvents', 'eventCount']),
@@ -6654,6 +6771,7 @@ function blendGaEventsSection(model){
   const prevMap = new Map(model.ga.eventsPrev.map(row => [row.key, row]));
   const channelSel = BLEND.filters.keyChannels;
   const channelActive = !!(channelSel && channelSel.size);
+  const attributedChannels = model.ga.byChannelAttributed !== false;
   // With a channel filter on, totals must come from the event x channel report
   // rather than the event totals, or the numbers would ignore the filter.
   let rows;
@@ -6663,9 +6781,11 @@ function blendGaEventsSection(model){
       const eventName = row.dims?.[0] || '';
       const channel = row.dims?.[1] || '';
       if (!eventName || !channelSel.has(channel)) return;
-      const entry = byEvent.get(eventName) || { key:eventName, keyEvents:0, eventCount:0 };
+      const entry = byEvent.get(eventName) || { key:eventName, keyEvents:0, eventCount:null };
       entry.keyEvents += row.keyEvents;
-      entry.eventCount += row.eventCount;
+      // Event count is not served alongside an attributed channel, so it stays
+      // null rather than summing to a misleading zero.
+      if (!attributedChannels) entry.eventCount = Number(entry.eventCount || 0) + row.eventCount;
       byEvent.set(eventName, entry);
     });
     rows = Array.from(byEvent.values()).map(row => Object.assign(row, { prev:null }));
@@ -6697,6 +6817,9 @@ function blendGaEventsSection(model){
     filters,
     body:`
       ${blendChannelChips(model)}
+      ${model.ga.byChannelError
+        ? `<div class="blend-hint">GA4 would not serve the attributed channel split for this property, so these channels are session-scoped and will not match Advertising → Key event performance.</div>`
+        : `<div class="blend-hint">Channels are credited the way Advertising → Key event performance does it, by primary channel group under the property's attribution model — not the session channel used by Traffic acquisition.</div>`}
       ${channelActive ? `<div class="blend-hint">Filtered to ${escapeHtml(Array.from(channelSel).join(', '))}. Period comparison is unavailable while a channel filter is active.</div>` : ''}
       <div class="blend-table-shell">
         <table class="blend-table">
@@ -6709,8 +6832,8 @@ function blendGaEventsSection(model){
             ${rows.map(row => `
               <tr>
                 <td><span class="blend-name" title="${escapeHtml(row.key)}">${escapeHtml(row.key || '—')}</span></td>
-                <td class="num">${escapeHtml(formatMetricValue(row.keyEvents))}${blendDeltaTag(row.keyEvents, row.prev)}${blendBar(row.keyEvents, max, 'ga')}</td>
-                <td class="num">${escapeHtml(formatMetricValue(row.eventCount))}</td>
+                <td class="num">${escapeHtml(formatAttributedValue(row.keyEvents))}${blendDeltaTag(row.keyEvents, row.prev)}${blendBar(row.keyEvents, max, 'ga')}</td>
+                <td class="num">${row.eventCount == null ? '—' : escapeHtml(formatMetricValue(row.eventCount))}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -7047,7 +7170,15 @@ function blendSetAllEvents(mode){
 /* ---------- channel filter for the key-events table ---------- */
 function blendChannelOptions(model){
   const set = new Set();
-  (model?.ga?.channels || []).forEach(name => { if (name) set.add(name); });
+  // Prefer the channels the key-event rows actually carry. Those come from the
+  // attributed dimension, which does not always produce the same set of names as
+  // the session-scoped trend — "Unassigned" in particular shows up under
+  // attribution and never in the session channel group.
+  (model?.ga?.byChannel || []).forEach(row => {
+    const name = row.dims?.[1] || '';
+    if (name) set.add(name);
+  });
+  if (!set.size) (model?.ga?.channels || []).forEach(name => { if (name) set.add(name); });
   return Array.from(set).sort();
 }
 function blendChannelChips(model){
