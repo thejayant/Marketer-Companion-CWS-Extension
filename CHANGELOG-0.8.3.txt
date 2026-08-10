@@ -1,0 +1,53 @@
+MARKETER COMPANION v0.8.3 — 08 Aug 2026
+=======================================
+
+1. KEY EVENTS NOW COME FROM THE ADVERTISING REPORT
+==================================================
+GA4 counts key events twice, under two different channel dimensions, and they
+disagree:
+
+  sessionDefaultChannelGroup  the session's last-touch channel, used by the
+                              Traffic acquisition report
+  primaryChannelGroup         the attributed channel, used by
+                              Advertising -> Key events -> Key event performance
+
+Every key-event breakdown was reading the first one. GA4's own key-event
+reporting uses the second, so the extension disagreed with the interface it is
+meant to mirror.
+
+Every place key events are counted against a channel now uses
+primaryChannelGroup:
+
+  - The blended report's key-events-by-channel table
+  - The Key events KPI card, via a dedicated primaryChannelGroup request
+  - The daily key-events line, via a date x primaryChannelGroup request
+  - The GA4 panel's key-events breakdown, which now defaults to
+    Primary channel group
+
+Sessions still use sessionDefaultChannelGroup, which is correct for sessions.
+Each new request falls back to the previous behaviour if it fails, so a
+property that does not return the attributed dimension still reports.
+
+
+2. SELECTING A CHANNEL EMPTIED THE KEY EVENTS TABLE
+===================================================
+The channel chips were built from one report (ga.channels) while the filter
+they drove ran against a different one (ga.byChannel), on a different
+dimension. A chip could therefore name a channel that never appears in the rows
+being filtered, and selecting it matched nothing — "No key events recorded".
+
+Filter options are now derived from the data they filter, so every chip is
+guaranteed to return rows. If the events-by-channel report is empty the old
+list is used as a fallback, and if both are empty no chips are shown.
+
+
+3. KEY EVENT PICKER LAYOUT
+==========================
+The picker is lifted out of the panel's scroll container so it cannot be
+clipped, which dropped every #panelAnalytics-scoped rule that sized and spaced
+it — the same class of bug as the date picker in 0.8.2. Those rules are
+restated for the lifted element: the menu is a grid of search, bulk actions and
+a scrolling list; options size and highlight correctly; nothing paints outside
+the menu.
+
+The breakdown dropdown also now shows readable names rather than raw API ids.

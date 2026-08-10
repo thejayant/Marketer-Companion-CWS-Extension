@@ -1,7 +1,7 @@
-# Chrome Web Store submission — Marketer Companion 0.8.2
+# Chrome Web Store submission — Marketer Companion 0.8.3
 
 Build the package with `node build.js`. It validates first and refuses to package
-if anything that causes a rejection is present. Upload `marketer-companion-0.8.2.zip`.
+if anything that causes a rejection is present. Upload `marketer-companion-0.8.3.zip`.
 
 `build.js`, `SUBMISSION.md`, `dist/`, `CHANGELOG-*.txt`, `.claude/` and
 `.playwright-cli/` are **not** in the package.

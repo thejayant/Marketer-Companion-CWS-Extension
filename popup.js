@@ -1156,13 +1156,14 @@ const GA_STORAGE_KEYS = {
 };
 const GA_OVERVIEW_METRICS = ['sessions', 'keyEvents', 'activeUsers', 'screenPageViews', 'eventCount'];
 const GA_KEY_EVENT_METRICS = ['keyEvents', 'eventCount', 'activeUsers', 'sessions'];
-const GA_DEFAULT_BREAKDOWN = 'sessionDefaultChannelGroup';
+const GA_DEFAULT_BREAKDOWN = 'primaryChannelGroup';
 // Friendly names, matching what GA4 itself calls these fields. The picker shows
 // these instead of the raw API ids, and the report reuses them in its headings.
 const GA_DIM_LABELS = {
   date: "Date",
   // Traffic — session (last touch)
   sessionDefaultChannelGroup: "Session default channel group",
+  primaryChannelGroup: "Primary channel group",
   sessionSource: "Session source",
   sessionMedium: "Session medium",
   sessionSourceMedium: "Session source / medium",
@@ -5998,6 +5999,22 @@ async function blendFetchAll({ forceRefresh=false } = {}){
     startDate:prev.start, endDate:prev.end,
     dimensions:[gaDim], metrics:gaMetrics, rowLimit:300, orderByMetric:'sessions'
   }));
+  // Key events are attributed, so they are counted against primaryChannelGroup
+  // rather than the session's last-touch channel. Sessions keep using
+  // sessionDefaultChannelGroup, which is correct for them.
+  add('gaKeyTotals', propertyId && Object.assign({}, gaBase, {
+    startDate:range.start, endDate:range.end,
+    dimensions:['primaryChannelGroup'], metrics:['keyEvents'], rowLimit:100
+  }));
+  add('gaKeyTotalsPrev', (propertyId && prev) && Object.assign({}, gaBase, {
+    startDate:prev.start, endDate:prev.end,
+    dimensions:['primaryChannelGroup'], metrics:['keyEvents'], rowLimit:100
+  }));
+  add('gaKeyTrend', propertyId && Object.assign({}, gaBase, {
+    startDate:range.start, endDate:range.end,
+    dimensions:['date', 'primaryChannelGroup'], metrics:['keyEvents'], rowLimit:2000
+  }));
+
   const keyFilter = keyEventNames.length ? { fieldName:'eventName', values:keyEventNames } : null;
   add('gaEvents', propertyId && Object.assign({}, gaBase, {
     startDate:range.start, endDate:range.end,
@@ -6011,7 +6028,7 @@ async function blendFetchAll({ forceRefresh=false } = {}){
   }));
   add('gaEventsByChannel', propertyId && Object.assign({}, gaBase, {
     startDate:range.start, endDate:range.end,
-    dimensions:['eventName', 'sessionDefaultChannelGroup'], metrics:['keyEvents', 'eventCount'],
+    dimensions:['eventName', 'primaryChannelGroup'], metrics:['keyEvents', 'eventCount'],
     inListFilter:keyFilter, rowLimit:400, orderByMetric:'keyEvents'
   }));
 
@@ -6221,6 +6238,9 @@ function blendShape(raw){
   // in Organic Social, Organic Video and Organic Shopping, which inflated the
   // figure sitting next to Search Console clicks.
   const segment = blendSegment();
+  const gaKeyTotalsRows = blendGaRows(raw.gaKeyTotals, ['keyEvents']);
+  const gaKeyTotalsPrevRows = blendGaRows(raw.gaKeyTotalsPrev, ['keyEvents']);
+  const gaKeyTrendRows = blendGaRows(raw.gaKeyTrend, ['keyEvents']);
   const matchChannelAt = index => row => segment.channel(String(row.dims?.[index] || '').trim().toLowerCase());
   const isOrganic = matchChannelAt(1);       // date x channel rows
   const isOrganicTotal = matchChannelAt(0);  // channel-only rows
@@ -6253,7 +6273,9 @@ function blendShape(raw){
     // traffic while the card divided them by organic sessions and called the
     // result "of organic", which inflated the rate by whatever share of the
     // property is not organic.
-    keyEvents: blendDailyMap(gaTrend.filter(isOrganic), 0, row => row.keyEvents),
+    keyEvents: gaKeyTrendRows.length
+      ? blendDailyMap(gaKeyTrendRows.filter(matchChannelAt(1)), 0, row => row.keyEvents)
+      : blendDailyMap(gaTrend.filter(isOrganic), 0, row => row.keyEvents),
     clicks: blendDailyMap(gscTrend, 0, row => row.clicks),
     calls: blendDailyMap(crTrend, 0, row => row.total_calls)
   };
@@ -6261,8 +6283,12 @@ function blendShape(raw){
   const totals = {
     sessions: sumTotals(gaTotalsRows, gaTrend, 'sessions', true),
     sessionsAll: sumTotals(gaTotalsRows, gaTrend, 'sessions', false),
-    keyEvents: sumTotals(gaTotalsRows, gaTrend, 'keyEvents', true),
-    keyEventsAll: sumTotals(gaTotalsRows, gaTrend, 'keyEvents', false),
+    keyEvents: gaKeyTotalsRows.length
+      ? blendSum(gaKeyTotalsRows.filter(isOrganicTotal), 'keyEvents')
+      : sumTotals(gaTotalsRows, gaTrend, 'keyEvents', true),
+    keyEventsAll: gaKeyTotalsRows.length
+      ? blendSum(gaKeyTotalsRows, 'keyEvents')
+      : sumTotals(gaTotalsRows, gaTrend, 'keyEvents', false),
     clicks: blendSum(gscTrend, 'clicks'),
     impressions: blendSum(gscTrend, 'impressions'),
     calls: crSource.length ? blendSum(crOrganic, 'total_calls') : blendSum(crTrend, 'total_calls'),
@@ -6272,8 +6298,12 @@ function blendShape(raw){
   const prevTotals = {
     sessions: sumTotals(gaTotalsPrevRows, gaTrendPrev, 'sessions', true),
     sessionsAll: sumTotals(gaTotalsPrevRows, gaTrendPrev, 'sessions', false),
-    keyEvents: sumTotals(gaTotalsPrevRows, gaTrendPrev, 'keyEvents', true),
-    keyEventsAll: sumTotals(gaTotalsPrevRows, gaTrendPrev, 'keyEvents', false),
+    keyEvents: gaKeyTotalsPrevRows.length
+      ? blendSum(gaKeyTotalsPrevRows.filter(isOrganicTotal), 'keyEvents')
+      : sumTotals(gaTotalsPrevRows, gaTrendPrev, 'keyEvents', true),
+    keyEventsAll: gaKeyTotalsPrevRows.length
+      ? blendSum(gaKeyTotalsPrevRows, 'keyEvents')
+      : sumTotals(gaTotalsPrevRows, gaTrendPrev, 'keyEvents', false),
     clicks: blendSum(gscTrendPrev, 'clicks'),
     impressions: blendSum(gscTrendPrev, 'impressions'),
     calls: crSourcePrev.length ? blendSum(crOrganicPrev, 'total_calls') : blendSum(crTrendPrev, 'total_calls'),
@@ -7046,8 +7076,16 @@ function blendSetAllEvents(mode){
 
 /* ---------- channel filter for the key-events table ---------- */
 function blendChannelOptions(model){
+  // These chips filter model.ga.byChannel, so they have to be built from it.
+  // Sourcing them from ga.channels - a different report, on a different
+  // dimension - meant a chip could name a channel that never appears in the
+  // rows being filtered, and selecting it emptied the table.
   const set = new Set();
-  (model?.ga?.channels || []).forEach(name => { if (name) set.add(name); });
+  (model?.ga?.byChannel || []).forEach(row => {
+    const name = row.dims?.[1];
+    if (name) set.add(name);
+  });
+  if (!set.size) (model?.ga?.channels || []).forEach(name => { if (name) set.add(name); });
   return Array.from(set).sort();
 }
 function blendChannelChips(model){

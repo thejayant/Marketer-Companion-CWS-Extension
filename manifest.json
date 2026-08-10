@@ -3,7 +3,7 @@
   "manifest_version": 3,
   "name": "Marketer Companion — SEO & Marketing Toolkit",
   "short_name": "Mkt Toolkit",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Blend Search Console, GA4 and CallRail into one report, plus on-page audits, structured data and indexing checks.",
   "action": {
     "default_title": "Marketer Companion",
@@ -46,7 +46,7 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:;"
   },
-  "version_name": "0.8.2 - 08082026",
+  "version_name": "0.8.3 - 08082026",
   "side_panel": {
     "default_path": "panel.html"
   },
