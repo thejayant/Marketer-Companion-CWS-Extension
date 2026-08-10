@@ -1,4 +1,4 @@
-MARKETER COMPANION v0.8.3 — 08 Aug 2026
+MARKETER COMPANION v0.8.3 — 11 Aug 2026
 =======================================
 
 1. KEY EVENTS NOW COME FROM THE ADVERTISING REPORT
@@ -29,7 +29,26 @@ Each new request falls back to the previous behaviour if it fails, so a
 property that does not return the attributed dimension still reports.
 
 
-2. SELECTING A CHANNEL EMPTIED THE KEY EVENTS TABLE
+2. THE KEY EVENTS KPI IGNORED THE SELECTED EVENTS
+=================================================
+The Key events card and the Key events section under it disagreed — a property
+with eleven events selected and the Organic Search segment on showed 101 on the
+card and 6 in the table.
+
+The card was reading the request built for the sessions card: every key event
+in the property, split by session channel, with no event filter. It then
+labelled that total with the current selection, so it said "11 selected events"
+over a number that counted all of them.
+
+Key events now have their own requests — totals, previous period and daily
+trend — all filtered to the selected events and split by attributed channel, so
+the card, the trend line and the table are three views of one figure. When a
+property will not serve those requests the card falls back to the old unscoped
+total, and says "All key events" rather than naming a selection it is not
+honouring. Fractional attribution credit is printed the way GA4 prints it.
+
+
+3. SELECTING A CHANNEL EMPTIED THE KEY EVENTS TABLE
 ===================================================
 The channel chips were built from one report (ga.channels) while the filter
 they drove ran against a different one (ga.byChannel), on a different
@@ -41,13 +60,24 @@ guaranteed to return rows. If the events-by-channel report is empty the old
 list is used as a fallback, and if both are empty no chips are shown.
 
 
-3. KEY EVENT PICKER LAYOUT
-==========================
+4. KEY EVENT PICKER LAYOUT AND SCROLLING
+========================================
 The picker is lifted out of the panel's scroll container so it cannot be
-clipped, which dropped every #panelAnalytics-scoped rule that sized and spaced
-it — the same class of bug as the date picker in 0.8.2. Those rules are
-restated for the lifted element: the menu is a grid of search, bulk actions and
-a scrolling list; options size and highlight correctly; nothing paints outside
-the menu.
+clipped, which dropped every #panelAnalytics- and .main-scoped rule that sized
+and spaced it — the same class of bug as the date picker in 0.8.2. Those rules
+are now restated against the menu's own id, so it looks the same wherever it is
+mounted: search box, bulk actions row and a scrolling list of options, with the
+checkbox and event name aligned left and long names ellipsised.
+
+The list also would not scroll. The overlay repositions itself on scroll, and
+that listener was capture-phase, so scrolling inside the menu triggered it too.
+Repositioning re-measures the menu unclamped, which stops the list overflowing
+and drops it back to the top — on every wheel tick. Scrolls originating inside
+an overlay no longer reposition it, and the positioner now restores any inner
+scroll offset across its measurement.
+
+Ticking an event re-renders the list, which used to reset the scroll to the
+top; the offset is now carried across. Filtering the list re-fits the menu to
+its new height.
 
 The breakdown dropdown also now shows readable names rather than raw API ids.

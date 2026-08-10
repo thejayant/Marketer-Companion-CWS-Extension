@@ -8008,67 +8008,123 @@ html[data-mode="panel"] .cell.date-range-slot .switch-inline.range-compare .swit
 .date-range-popover .date-range-calendar__foot{
   flex:0 0 auto;
 }
-#gaKeyEventMenu.viewport-overlay{
-  grid-template-rows:auto auto minmax(0,1fr) !important;
-  gap:6px !important;
-  padding:6px !important;
-  overflow:hidden;
-  border-radius:10px !important;
-}
-#gaKeyEventMenu.viewport-overlay .ga-picker-list{
-  display:grid;
-  gap:4px !important;
-  max-height:none !important;
-  min-height:0;
-  overflow-y:auto;
-}
-
-
-/* ===== KEY EVENT PICKER OVERLAY · 0.8.3 ===================================
-   The menu is lifted to <body> to escape the panel's scroll container, which
-   drops every #panelAnalytics-scoped rule that used to size and space it.
-   These restate them for the lifted element so it lays out and scrolls. */
-#gaKeyEventMenu.viewport-overlay{
-  display:grid !important;
-  grid-template-rows:auto auto minmax(0,1fr) !important;
+/* ── GA4 key-event picker · layout ────────────────────────────────────────
+   This menu inherits from .picker-menu, .ga-picker-menu and three later
+   override blocks, several of which use !important, and the results fought
+   each other: the option rows took their justification from the property
+   picker (checkbox left, name pushed to the far right), and the list could not
+   scroll because the row track never resolved against the overlay's clamped
+   height. Everything the menu needs is declared here instead, last and by id,
+   so it no longer depends on which earlier block wins. Flex rather than grid:
+   a flex column with max-height gives the list a definite box to scroll in. */
+#gaKeyEventMenu{
+  display:flex !important;
+  flex-direction:column !important;
   gap:6px !important;
   padding:6px !important;
   overflow:hidden !important;
   border-radius:10px !important;
 }
-#gaKeyEventMenu.viewport-overlay .picker-search{
-  width:100%; min-height:34px !important; height:34px !important;
-  padding:0 10px !important; border-radius:9px !important;
-  font-size:11.5px !important;
+#gaKeyEventMenu.hidden{ display:none !important; }
+/* The menu is reparented to <body> while open, so every #panelAnalytics and
+   .main scoped rule stops matching it — which is what stripped the search box
+   and the Select all / Clear row of their layout. They are restyled here, off
+   the menu's own id, so it looks the same wherever it is mounted. */
+#gaKeyEventMenu .picker-search{
+  flex:0 0 auto !important;
+  width:100% !important;
+  min-height:32px !important;
+  padding:7px 10px !important;
+  border:1px solid var(--border) !important;
+  border-radius:8px !important;
+  background:var(--input-bg) !important;
+  color:var(--text) !important;
+  font:500 12px/1.2 var(--font-ui) !important;
+  outline:none;
 }
-#gaKeyEventMenu.viewport-overlay .ga-picker-actions{
-  display:flex !important; align-items:center; justify-content:space-between;
-  gap:10px; padding:0 2px;
+#gaKeyEventMenu .picker-search:focus{
+  border-color:var(--border-focus) !important;
+  box-shadow:0 0 0 3px rgba(57,224,122,0.08) !important;
 }
-#gaKeyEventMenu.viewport-overlay .ga-picker-list{
-  display:grid !important; gap:4px !important;
-  min-height:0 !important; max-height:none !important;
-  overflow-y:auto !important; overscroll-behavior:contain;
+#gaKeyEventMenu .ga-picker-actions{
+  flex:0 0 auto !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:8px !important;
+  padding:0 2px !important;
+  font-size:12px !important;
+}
+#gaKeyEventMenu .ga-picker-actions.hidden{ display:none !important; }
+#gaKeyEventMenu .ga-picker-clear{
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  height:26px !important;
+  padding:0 10px !important;
+  border:1px solid var(--border) !important;
+  border-radius:8px !important;
+  background:transparent !important;
+  color:var(--text-2) !important;
+  font:600 11px/1 var(--font-ui) !important;
+  box-shadow:none !important;
+  cursor:pointer;
+}
+#gaKeyEventMenu .ga-picker-clear:disabled{ opacity:.45; cursor:default; }
+#gaKeyEventMenu .ga-picker-list{
+  flex:1 1 auto !important;
+  display:block !important;
+  min-height:0 !important;
+  max-height:none !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  overscroll-behavior:contain;
   padding-right:2px;
 }
-#gaKeyEventMenu.viewport-overlay .ga-picker-option{
-  display:flex !important; align-items:center; justify-content:flex-start;
-  gap:8px; min-height:32px !important; height:auto !important;
-  padding:6px 8px !important; border-radius:8px !important;
-  border:1px solid rgba(223,240,230,.08) !important;
-  background:rgba(255,255,255,.035) !important;
-  cursor:pointer; text-align:left;
+#gaKeyEventMenu .ga-picker-option{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:9px !important;
+  width:100% !important;
+  min-height:0 !important;
+  height:auto !important;
+  margin:0 0 4px 0 !important;
+  padding:7px 10px !important;
+  border-radius:8px !important;
+  text-align:left !important;
+  font-size:12px !important;
+  cursor:pointer;
 }
-#gaKeyEventMenu.viewport-overlay .ga-picker-option.active{
-  border-color:rgba(57,224,122,.34) !important;
-  background:rgba(57,224,122,.10) !important;
+#gaKeyEventMenu .ga-picker-option:last-child{ margin-bottom:0 !important; }
+#gaKeyEventMenu .ga-picker-option input[type="checkbox"]{
+  flex:0 0 14px !important;
+  width:14px !important;
+  height:14px !important;
+  margin:0 !important;
+  accent-color:rgb(25,195,125);
 }
-#gaKeyEventMenu.viewport-overlay .ga-picker-option input{
-  flex:0 0 15px; width:15px; height:15px; margin:0; accent-color:rgb(25,195,125);
+#gaKeyEventMenu .ga-picker-name{
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  text-align:left !important;
 }
-#gaKeyEventMenu.viewport-overlay .ga-picker-name{
-  flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
-  white-space:nowrap; font-size:11.5px; line-height:1.2; color:var(--text);
+#gaKeyEventMenu .ga-picker-bulk{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  margin:0 !important;
+  cursor:pointer;
+}
+#gaKeyEventMenu .ga-picker-bulk input[type="checkbox"]{
+  flex:0 0 14px !important;
+  width:14px !important;
+  height:14px !important;
+  margin:0 !important;
+  accent-color:rgb(25,195,125);
 }
 
 </style>
@@ -8495,11 +8551,17 @@ html[data-mode="panel"] .cell.date-range-slot .switch-inline.range-compare .swit
       <div class="cell ga-mode-keyevents hidden">
         <label>Breakdown</label>
         <select id="gaKeyBreakdown">
-          <option value="primaryChannelGroup" selected>Primary channel group</option>
-          <option value="sessionDefaultChannelGroup">Session default channel group</option>
-          <option value="country">Country</option>
-          <option value="deviceCategory">Device category</option>
-          <option value="pagePathPlusQueryString">Page path and query string</option>
+          <optgroup label="Attribution — Advertising → Key event performance">
+            <option value="primaryChannelGroup">Primary channel group</option>
+          </optgroup>
+          <optgroup label="Session — Reports → Acquisition">
+            <option value="sessionDefaultChannelGroup">Session default channel group</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="country">Country</option>
+            <option value="deviceCategory">Device category</option>
+            <option value="pagePathPlusQueryString">Page path and query string</option>
+          </optgroup>
         </select>
       </div>
 

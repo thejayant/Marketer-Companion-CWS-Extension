@@ -87,6 +87,13 @@ function positionViewportOverlay(anchor, overlay, {
   mountViewportOverlay(overlay);
   overlay.classList.add('viewport-overlay');
   overlay.style.width = `${overlayWidth}px`;
+  // Natural height is measured unclamped, which momentarily lets the inner
+  // scroll box grow to its full content. That stops it overflowing, and the
+  // browser resets its scrollTop to 0 — so anything scrolled inside the overlay
+  // is noted first and put back once the clamp is on again.
+  const scrolled = Array.from(overlay.querySelectorAll('*'))
+    .filter(el => el.scrollTop > 0)
+    .map(el => [el, el.scrollTop]);
   overlay.style.maxHeight = 'none';
   overlay.style.top = '0px';
   overlay.style.left = '0px';
@@ -108,6 +115,9 @@ function positionViewportOverlay(anchor, overlay, {
   overlay.style.top = `${Math.round(top)}px`;
   overlay.style.maxHeight = `${Math.floor(overlayHeight)}px`;
   overlay.dataset.overlayPlacement = placeAbove ? 'top' : 'bottom';
+  scrolled.forEach(([el, top]) => {
+    el.scrollTop = Math.min(top, Math.max(0, el.scrollHeight - el.clientHeight));
+  });
 }
 function positionOpenOverlays(){
   if (OPEN_DATE_RANGE && !OPEN_DATE_RANGE.popover.hidden){
@@ -134,7 +144,15 @@ function scheduleOverlayPosition(){
   });
 }
 window.addEventListener('resize', scheduleOverlayPosition);
-document.addEventListener('scroll', scheduleOverlayPosition, true);
+// Capture phase, so scrolling any panel behind the overlay keeps it on its
+// anchor. Scrolling *inside* the overlay must not trigger that: repositioning
+// re-measures the overlay unclamped, which drops the inner list back to the top
+// on every wheel tick and makes it look like the list will not scroll at all.
+document.addEventListener('scroll', (event) => {
+  const target = event.target;
+  if (target instanceof Element && target.closest('.viewport-overlay')) return;
+  scheduleOverlayPosition();
+}, true);
 
 function dateRangeParse(value){
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
@@ -1156,14 +1174,53 @@ const GA_STORAGE_KEYS = {
 };
 const GA_OVERVIEW_METRICS = ['sessions', 'keyEvents', 'activeUsers', 'screenPageViews', 'eventCount'];
 const GA_KEY_EVENT_METRICS = ['keyEvents', 'eventCount', 'activeUsers', 'sessions'];
-const GA_DEFAULT_BREAKDOWN = 'primaryChannelGroup';
+// Key events are split by channel the way GA4's own Advertising -> Key events ->
+// Key event performance report does it: by Primary channel group, on an
+// attribution basis. That report spreads credit for a key event across the whole
+// conversion path using the property's reporting attribution model, so it
+// disagrees with Reports -> Acquisition, which is session-scoped and gives the
+// whole key event to the last non-direct click inside the session. The
+// Advertising figures are the ones people quote as conversions, so they are what
+// this panel has to reproduce.
+const GA_ATTRIBUTION_CHANNEL_DIM = 'primaryChannelGroup';
+const GA_SESSION_CHANNEL_DIM = 'sessionDefaultChannelGroup';
+const GA_ATTRIBUTION_DIMS = new Set([GA_ATTRIBUTION_CHANNEL_DIM, 'defaultChannelGroup']);
+// Attribution-scoped dimensions only join metrics that carry conversion credit.
+// Sessions, users and raw event counts are stored on a different basis, and GA4
+// rejects the whole request rather than returning a partial one, so they are
+// dropped from anything that breaks down by an attributed channel.
+const GA_ATTRIBUTION_METRICS = new Set([
+  'keyEvents',
+  'totalRevenue',
+  'advertiserAdCost',
+  'advertiserAdClicks',
+  'advertiserAdImpressions'
+]);
+const GA_DEFAULT_BREAKDOWN = GA_ATTRIBUTION_CHANNEL_DIM;
+function gaIsAttributionDim(name){ return GA_ATTRIBUTION_DIMS.has(name); }
+function gaUsesAttribution(dimensions){ return (dimensions || []).some(gaIsAttributionDim); }
+function gaCompatibleMetrics(dimensions, metrics){
+  if (!gaUsesAttribution(dimensions)) return metrics;
+  const kept = (metrics || []).filter(name => GA_ATTRIBUTION_METRICS.has(name));
+  return kept.length ? kept : ['keyEvents'];
+}
+// Under a data-driven model a key event is credited fractionally, which is why
+// GA4 prints these to two decimals. Whole numbers stay whole so a last-click
+// property does not suddenly grow ".00" everywhere.
+function formatAttributedValue(value){
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return '0';
+  return Number.isInteger(num) ? num.toLocaleString() : formatMetricValue(num, 'number', 2);
+}
 // Friendly names, matching what GA4 itself calls these fields. The picker shows
 // these instead of the raw API ids, and the report reuses them in its headings.
 const GA_DIM_LABELS = {
   date: "Date",
+  // Traffic — attribution (what Advertising → Key event performance reports on)
+  primaryChannelGroup: "Primary channel group",
+  defaultChannelGroup: "Default channel group",
   // Traffic — session (last touch)
   sessionDefaultChannelGroup: "Session default channel group",
-  primaryChannelGroup: "Primary channel group",
   sessionSource: "Session source",
   sessionMedium: "Session medium",
   sessionSourceMedium: "Session source / medium",
@@ -1282,7 +1339,17 @@ async function gaHydrateState(){
     ? stored[GA_STORAGE_KEYS.selections]
     : {};
   GA.mode = stored?.[GA_STORAGE_KEYS.mode] === 'keyEvents' ? 'keyEvents' : 'overview';
-  GA.breakdown = stored?.[GA_STORAGE_KEYS.breakdown] || GA_DEFAULT_BREAKDOWN;
+  // The key-event breakdown used to be session-scoped with nothing else on
+  // offer, so a stored session channel group is the old default rather than a
+  // deliberate choice. Move it onto the attributed dimension the Advertising
+  // report uses; anything else the user picked is left alone.
+  const storedBreakdown = stored?.[GA_STORAGE_KEYS.breakdown];
+  GA.breakdown = (!storedBreakdown || storedBreakdown === GA_SESSION_CHANNEL_DIM)
+    ? GA_DEFAULT_BREAKDOWN
+    : storedBreakdown;
+  if (storedBreakdown && storedBreakdown !== GA.breakdown){
+    void gaSetStored({ [GA_STORAGE_KEYS.breakdown]: GA.breakdown });
+  }
   const breakdown = $('gaKeyBreakdown');
   if (breakdown) breakdown.value = GA.breakdown;
   gaSyncModeUi();
@@ -1467,6 +1534,14 @@ function gaRenderKeyEventPicker(){
   const list = $('gaKeyEventList');
   const actions = $('gaKeyEventActions');
   if (!list) return;
+  // Ticking an event re-renders the whole list, which resets the scroll box to
+  // the top. With fourteen events that reads as the list jumping away from the
+  // one just clicked, so the offset is carried across the re-render.
+  const scrollTop = list.scrollTop;
+  const restoreScroll = () => {
+    if (!scrollTop) return;
+    list.scrollTop = Math.min(scrollTop, Math.max(0, list.scrollHeight - list.clientHeight));
+  };
   const propertyId = gaCurrentPropertyId();
   const available = gaGetCurrentKeyEvents(propertyId);
   const selected = new Set(gaGetSelectedKeyEvents(propertyId));
@@ -1497,6 +1572,7 @@ function gaRenderKeyEventPicker(){
   if (!items.length){
     hideActions();
     list.innerHTML = `<div class="picker-empty">No matches.</div>`;
+    scheduleOverlayPosition();
     return;
   }
 
@@ -1525,6 +1601,10 @@ function gaRenderKeyEventPicker(){
       </label>
     `;
   }).join('');
+  restoreScroll();
+  // The menu is a fixed-position overlay sized to its content, so filtering the
+  // list changes how tall it should be. Re-fit it against the viewport.
+  scheduleOverlayPosition();
 
   const selectAll = actions?.querySelector('[data-ga-select-all]');
   if (selectAll){
@@ -1763,6 +1843,27 @@ async function gaFetchReport(payload){
   if (!r.ok) throw apiErrorFromResponse(r, 'GA4 error');
   return { data: r.data, cache: r.cache || null };
 }
+// GA4 refuses dimension/metric mixes it does not store together, and which
+// attributed combinations a property will serve depends on how that property is
+// configured. Rather than leave the panel empty, drop back to the session-scoped
+// breakdown and let the caller say which basis is on screen.
+function gaIsCompatibilityError(err){
+  return /incompat|not compatible|cannot be (used|queried)|INVALID_ARGUMENT|invalid argument/i
+    .test(String(err?.message || err || ''));
+}
+async function gaFetchAttributedReport(payload, fallbackPayload){
+  try{
+    const result = await gaFetchReport(payload);
+    return Object.assign({}, result, { attributed: true, attributionError: null });
+  }catch(err){
+    if (!fallbackPayload || !gaIsCompatibilityError(err)) throw err;
+    const result = await gaFetchReport(fallbackPayload);
+    return Object.assign({}, result, {
+      attributed: false,
+      attributionError: String(err?.message || err)
+    });
+  }
+}
 async function gaFetchKeyEventBundle({ propertyId, startDate, endDate, eventNames, breakdown, forceRefresh=false }){
   const base = {
     propertyId,
@@ -1774,6 +1875,14 @@ async function gaFetchKeyEventBundle({ propertyId, startDate, endDate, eventName
       values: eventNames
     }
   };
+  const breakdownDims = [breakdown];
+  const breakdownPayload = Object.assign({}, base, {
+    dimensions: breakdownDims,
+    metrics: gaCompatibleMetrics(breakdownDims, GA_KEY_EVENT_METRICS),
+    rowLimit: 50,
+    orderByMetric: 'keyEvents',
+    forceRefresh
+  });
   const [eventTotals, trend, breakdownData] = await Promise.all([
     gaFetchReport(Object.assign({}, base, {
       dimensions: ['eventName'],
@@ -1782,17 +1891,22 @@ async function gaFetchKeyEventBundle({ propertyId, startDate, endDate, eventName
       forceRefresh
     })),
     gaFetchReport(Object.assign({}, base, { dimensions: ['date'], forceRefresh })),
-    gaFetchReport(Object.assign({}, base, {
-      dimensions: [breakdown],
-      rowLimit: 50,
-      orderByMetric: 'keyEvents',
-      forceRefresh
-    }))
+    gaFetchAttributedReport(breakdownPayload, gaUsesAttribution(breakdownDims)
+      ? Object.assign({}, breakdownPayload, {
+          dimensions: [GA_SESSION_CHANNEL_DIM],
+          metrics: GA_KEY_EVENT_METRICS
+        })
+      : null)
   ]);
   return {
     eventTotals: eventTotals.data,
     trend: trend.data,
     breakdown: breakdownData.data,
+    // What the breakdown actually came back on, which is not the requested
+    // dimension when the attributed request had to fall back.
+    breakdownDim: breakdownData.attributed === false ? GA_SESSION_CHANNEL_DIM : breakdown,
+    attributed: breakdownData.attributed !== false,
+    attributionError: breakdownData.attributionError || null,
     cache: combineCacheMeta([eventTotals.cache, trend.cache, breakdownData.cache])
   };
 }
@@ -2249,7 +2363,11 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
   const series = gaMetricSeries(currBundle.trend, 'keyEvents');
   const prevSeries = gaHasRows(prevBundle?.trend) ? gaMetricSeries(prevBundle.trend, 'keyEvents') : [];
   const selectionLabel = meta.eventNames.length === 1 ? meta.eventNames[0] : `${meta.eventNames.length} events selected`;
-  const breakdownLabel = GA_DIM_LABELS[meta.breakdown] || meta.breakdown;
+  // The breakdown can come back on a different dimension than the one asked for
+  // when GA4 refused the attributed combination, so label what actually arrived.
+  const breakdownDim = currBundle.breakdownDim || meta.breakdown;
+  const breakdownLabel = GA_DIM_LABELS[breakdownDim] || breakdownDim;
+  const breakdownAttributed = gaIsAttributionDim(breakdownDim);
 
   const currEvents = gaMetricAccessor(currBundle.eventTotals, 'keyEvents');
   const prevEventsAccessor = gaMetricAccessor(prevBundle?.eventTotals, 'keyEvents');
@@ -2268,15 +2386,16 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
           label,
           value,
           prevValue,
-          displayValue: formatMetricValue(value),
+          displayValue: formatAttributedValue(value),
           delta: prevValue ? metricDelta(value, prevValue, { digits:0 }) : { text:'', cls:'' }
         };
       })
     : [];
 
+  const isChannelBreakdown = breakdownAttributed || breakdownDim === GA_SESSION_CHANNEL_DIM;
   const channelAgg = new Map();
-  (meta.breakdown === 'sessionDefaultChannelGroup'
-    ? gaReportRows(currBundle.breakdown, ['keyEvents', 'eventCount'])
+  (isChannelBreakdown
+    ? gaReportRows(currBundle.breakdown, ['keyEvents'])
     : []
   ).forEach(row => {
     const key = row.key || '';
@@ -2286,12 +2405,12 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
   const keyChannelRows = Array.from(channelAgg.values()).sort((a,b) => b.keyEvents - a.keyEvents);
   const keyChannelSection = keyChannelRows.length ? {
     type: 'compare',
-    title: 'Key events by default channel group',
+    title: `Key events by ${breakdownLabel.toLowerCase()}`,
     items: keyChannelRows.map(row => ({
       label: row.key,
       value: row.keyEvents,
       prevValue: 0,
-      displayValue: formatMetricValue(row.keyEvents),
+      displayValue: formatAttributedValue(row.keyEvents),
       delta: { text:'', cls:'' }
     }))
   } : null;
@@ -2303,12 +2422,17 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
     eyebrow: 'GA4',
     title: 'Key events',
     rangeLabel: `${meta.start} → ${meta.end}`,
-    subtitle: selectionLabel,
-    badges: [`Breakdown: ${breakdownLabel}`],
+    subtitle: currBundle.attributionError
+      ? `${selectionLabel} — GA4 would not serve the attributed breakdown for this property, so the channel split below is session-scoped and will not match Advertising → Key event performance.`
+      : selectionLabel,
+    badges: [
+      `Breakdown: ${breakdownLabel}`,
+      breakdownAttributed ? 'Attributed · matches Advertising → Key event performance' : null
+    ].filter(Boolean),
     kpis: [
       {
         label: 'Key events',
-        value: formatMetricValue(sums.keyEvents),
+        value: formatAttributedValue(sums.keyEvents),
         delta: metricDelta(sums.keyEvents, prevSums?.keyEvents)
       },
       {
@@ -2348,7 +2472,7 @@ function renderGaKeyEventsReport(currBundle, meta, prevBundle){
     ]
   }));
 
-  gaSetExport(`ga4-key-events-${meta.breakdown}-${meta.start}-${meta.end}.csv`, gaToCSV(currBundle.breakdown));
+  gaSetExport(`ga4-key-events-${breakdownDim}-${meta.start}-${meta.end}.csv`, gaToCSV(currBundle.breakdown));
 }
 function gaReportTableSection(title, data){
   if (!gaHasRows(data)) return null;
@@ -5999,22 +6123,6 @@ async function blendFetchAll({ forceRefresh=false } = {}){
     startDate:prev.start, endDate:prev.end,
     dimensions:[gaDim], metrics:gaMetrics, rowLimit:300, orderByMetric:'sessions'
   }));
-  // Key events are attributed, so they are counted against primaryChannelGroup
-  // rather than the session's last-touch channel. Sessions keep using
-  // sessionDefaultChannelGroup, which is correct for them.
-  add('gaKeyTotals', propertyId && Object.assign({}, gaBase, {
-    startDate:range.start, endDate:range.end,
-    dimensions:['primaryChannelGroup'], metrics:['keyEvents'], rowLimit:100
-  }));
-  add('gaKeyTotalsPrev', (propertyId && prev) && Object.assign({}, gaBase, {
-    startDate:prev.start, endDate:prev.end,
-    dimensions:['primaryChannelGroup'], metrics:['keyEvents'], rowLimit:100
-  }));
-  add('gaKeyTrend', propertyId && Object.assign({}, gaBase, {
-    startDate:range.start, endDate:range.end,
-    dimensions:['date', 'primaryChannelGroup'], metrics:['keyEvents'], rowLimit:2000
-  }));
-
   const keyFilter = keyEventNames.length ? { fieldName:'eventName', values:keyEventNames } : null;
   add('gaEvents', propertyId && Object.assign({}, gaBase, {
     startDate:range.start, endDate:range.end,
@@ -6026,11 +6134,56 @@ async function blendFetchAll({ forceRefresh=false } = {}){
     dimensions:['eventName'], metrics:['keyEvents', 'eventCount'],
     inListFilter:keyFilter, rowLimit:100, orderByMetric:'keyEvents'
   }));
-  add('gaEventsByChannel', propertyId && Object.assign({}, gaBase, {
-    startDate:range.start, endDate:range.end,
-    dimensions:['eventName', 'primaryChannelGroup'], metrics:['keyEvents', 'eventCount'],
-    inListFilter:keyFilter, rowLimit:400, orderByMetric:'keyEvents'
-  }));
+  // Key events per channel follow the Advertising → Key event performance basis,
+  // so the chips here filter on attributed credit rather than session channel.
+  // Every key-event request goes through this, which keeps them on one basis:
+  // the selected events, credited by attributed channel, with the same
+  // session-scoped fallback when the property will not serve attribution.
+  const keyEventJob = ({ dims, fallbackDims, metrics, startDate, endDate, rowLimit }) => (async () => {
+    const base = Object.assign({}, gaBase, {
+      startDate, endDate, inListFilter:keyFilter, rowLimit, orderByMetric:'keyEvents'
+    });
+    const attributed = await blendSend(Object.assign({}, base, {
+      dimensions:dims, metrics:gaCompatibleMetrics(dims, metrics)
+    }));
+    if (attributed.ok || !gaIsCompatibilityError({ message: attributed.error })){
+      return Object.assign({}, attributed, { attributed:true, attributionError:null });
+    }
+    // The property will not serve the attributed split. A session-scoped table
+    // is still worth showing, as long as the section says that is what it is.
+    const fallback = await blendSend(Object.assign({}, base, {
+      dimensions:fallbackDims, metrics
+    }));
+    return Object.assign({}, fallback, { attributed:false, attributionError:attributed.error });
+  })();
+  jobs.gaEventsByChannel = propertyId ? keyEventJob({
+    dims:['eventName', GA_ATTRIBUTION_CHANNEL_DIM],
+    fallbackDims:['eventName', GA_SESSION_CHANNEL_DIM],
+    metrics:['keyEvents', 'eventCount'],
+    startDate:range.start, endDate:range.end, rowLimit:400
+  }) : Promise.resolve(null);
+  // The Key events KPI has to answer the same question as the section under it.
+  // It used to read gaTotals, which counts *every* key event in the property and
+  // splits them by session channel, so a selection of 11 events could head a
+  // card with 101 while the table below showed 6.
+  jobs.gaKeyTotals = propertyId ? keyEventJob({
+    dims:[GA_ATTRIBUTION_CHANNEL_DIM],
+    fallbackDims:[GA_SESSION_CHANNEL_DIM],
+    metrics:['keyEvents'],
+    startDate:range.start, endDate:range.end, rowLimit:200
+  }) : Promise.resolve(null);
+  jobs.gaKeyTotalsPrev = (propertyId && prev) ? keyEventJob({
+    dims:[GA_ATTRIBUTION_CHANNEL_DIM],
+    fallbackDims:[GA_SESSION_CHANNEL_DIM],
+    metrics:['keyEvents'],
+    startDate:prev.start, endDate:prev.end, rowLimit:200
+  }) : Promise.resolve(null);
+  jobs.gaKeyTrend = propertyId ? keyEventJob({
+    dims:['date', GA_ATTRIBUTION_CHANNEL_DIM],
+    fallbackDims:['date', GA_SESSION_CHANNEL_DIM],
+    metrics:['keyEvents'],
+    startDate:range.start, endDate:range.end, rowLimit:2000
+  }) : Promise.resolve(null);
 
   // --- CallRail ---
   // Match the CallRail panel's request exactly. It sends the filter fields and
@@ -6238,9 +6391,6 @@ function blendShape(raw){
   // in Organic Social, Organic Video and Organic Shopping, which inflated the
   // figure sitting next to Search Console clicks.
   const segment = blendSegment();
-  const gaKeyTotalsRows = blendGaRows(raw.gaKeyTotals, ['keyEvents']);
-  const gaKeyTotalsPrevRows = blendGaRows(raw.gaKeyTotalsPrev, ['keyEvents']);
-  const gaKeyTrendRows = blendGaRows(raw.gaKeyTrend, ['keyEvents']);
   const matchChannelAt = index => row => segment.channel(String(row.dims?.[index] || '').trim().toLowerCase());
   const isOrganic = matchChannelAt(1);       // date x channel rows
   const isOrganicTotal = matchChannelAt(0);  // channel-only rows
@@ -6250,6 +6400,18 @@ function blendShape(raw){
   const sumTotals = (rows, trendRows, field, organicOnly) => rows.length
     ? blendSum(organicOnly ? rows.filter(isOrganicTotal) : rows, field)
     : blendSum(organicOnly ? trendRows.filter(isOrganic) : trendRows, field);
+
+  // Key events have their own requests: scoped to the selected events and split
+  // by attributed channel, so the KPI card reconciles with the key-event section
+  // and with Advertising → Key event performance. gaTotals is only a fallback
+  // for when that request fails, and it is neither of those things, so the card
+  // says as much when it has to be used.
+  const gaKeyTotalsRows = blendGaRows(raw.gaKeyTotals, ['keyEvents']);
+  const gaKeyTotalsPrevRows = blendGaRows(raw.gaKeyTotalsPrev, ['keyEvents']);
+  const gaKeyTrendRows = blendGaRows(raw.gaKeyTrend, ['keyEvents']);
+  const keyTotals = (keyRows, fallbackRows, trendRows, organicOnly) => keyRows.length
+    ? blendSum(organicOnly ? keyRows.filter(isOrganicTotal) : keyRows, 'keyEvents')
+    : sumTotals(fallbackRows, trendRows, 'keyEvents', organicOnly);
 
   const gscTrend = blendGscRows(raw.gscTrend);
   const gscTrendPrev = blendGscRows(raw.gscTrendPrev);
@@ -6274,7 +6436,7 @@ function blendShape(raw){
     // result "of organic", which inflated the rate by whatever share of the
     // property is not organic.
     keyEvents: gaKeyTrendRows.length
-      ? blendDailyMap(gaKeyTrendRows.filter(matchChannelAt(1)), 0, row => row.keyEvents)
+      ? blendDailyMap(gaKeyTrendRows.filter(isOrganic), 0, row => row.keyEvents)
       : blendDailyMap(gaTrend.filter(isOrganic), 0, row => row.keyEvents),
     clicks: blendDailyMap(gscTrend, 0, row => row.clicks),
     calls: blendDailyMap(crTrend, 0, row => row.total_calls)
@@ -6283,12 +6445,8 @@ function blendShape(raw){
   const totals = {
     sessions: sumTotals(gaTotalsRows, gaTrend, 'sessions', true),
     sessionsAll: sumTotals(gaTotalsRows, gaTrend, 'sessions', false),
-    keyEvents: gaKeyTotalsRows.length
-      ? blendSum(gaKeyTotalsRows.filter(isOrganicTotal), 'keyEvents')
-      : sumTotals(gaTotalsRows, gaTrend, 'keyEvents', true),
-    keyEventsAll: gaKeyTotalsRows.length
-      ? blendSum(gaKeyTotalsRows, 'keyEvents')
-      : sumTotals(gaTotalsRows, gaTrend, 'keyEvents', false),
+    keyEvents: keyTotals(gaKeyTotalsRows, gaTotalsRows, gaTrend, true),
+    keyEventsAll: keyTotals(gaKeyTotalsRows, gaTotalsRows, gaTrend, false),
     clicks: blendSum(gscTrend, 'clicks'),
     impressions: blendSum(gscTrend, 'impressions'),
     calls: crSource.length ? blendSum(crOrganic, 'total_calls') : blendSum(crTrend, 'total_calls'),
@@ -6298,12 +6456,8 @@ function blendShape(raw){
   const prevTotals = {
     sessions: sumTotals(gaTotalsPrevRows, gaTrendPrev, 'sessions', true),
     sessionsAll: sumTotals(gaTotalsPrevRows, gaTrendPrev, 'sessions', false),
-    keyEvents: gaKeyTotalsPrevRows.length
-      ? blendSum(gaKeyTotalsPrevRows.filter(isOrganicTotal), 'keyEvents')
-      : sumTotals(gaTotalsPrevRows, gaTrendPrev, 'keyEvents', true),
-    keyEventsAll: gaKeyTotalsPrevRows.length
-      ? blendSum(gaKeyTotalsPrevRows, 'keyEvents')
-      : sumTotals(gaTotalsPrevRows, gaTrendPrev, 'keyEvents', false),
+    keyEvents: keyTotals(gaKeyTotalsPrevRows, gaTotalsPrevRows, gaTrendPrev, true),
+    keyEventsAll: keyTotals(gaKeyTotalsPrevRows, gaTotalsPrevRows, gaTrendPrev, false),
     clicks: blendSum(gscTrendPrev, 'clicks'),
     impressions: blendSum(gscTrendPrev, 'impressions'),
     calls: crSourcePrev.length ? blendSum(crOrganicPrev, 'total_calls') : blendSum(crTrendPrev, 'total_calls'),
@@ -6336,6 +6490,16 @@ function blendShape(raw){
     ga: {
       channels: Array.from(new Set(gaTrend.map(row => row.dims?.[1]).filter(Boolean))).sort(),
       byChannel: blendGaRows(raw.gaEventsByChannel, ['keyEvents', 'eventCount']),
+      // The key-event split is attributed, so its channel names come from a
+      // different dimension than the session trend above and have to be listed
+      // from the rows themselves.
+      byChannelAttributed: raw.gaEventsByChannel ? raw.gaEventsByChannel.attributed !== false : true,
+      // What the KPI card is actually counting: 'attributed' and 'session' both
+      // honour the event selection, 'fallback' is the unscoped gaTotals figure.
+      keyTotalsBasis: gaKeyTotalsRows.length
+        ? (raw.gaKeyTotals?.attributed === false ? 'session' : 'attributed')
+        : 'fallback',
+      byChannelError: raw.gaEventsByChannel?.attributionError || null,
       breakdown: blendGaRows(raw.gaBreak, ['sessions', 'keyEvents']),
       breakdownPrev: blendGaRows(raw.gaBreakPrev, ['sessions', 'keyEvents']),
       events: blendGaRows(raw.gaEvents, ['keyEvents', 'eventCount']),
@@ -6381,7 +6545,12 @@ function blendRenderKpis(model){
 
   const organicShare = totals.sessionsAll ? (totals.sessions / totals.sessionsAll) * 100 : 0;
   const cvr = totals.sessions ? (totals.keyEvents / totals.sessions) * 100 : 0;
-  const eventLabel = model.ga.selectedEvents.length
+  // The label has to describe what the number counts. When the scoped request
+  // failed the card falls back to every key event in the property, and saying
+  // "11 selected events" over that total is how the card came to disagree with
+  // the section below it.
+  const keyTotalsScoped = model.ga.keyTotalsBasis !== 'fallback';
+  const eventLabel = (keyTotalsScoped && model.ga.selectedEvents.length)
     ? (model.ga.selectedEvents.length === 1 ? model.ga.selectedEvents[0] : `${model.ga.selectedEvents.length} selected events`)
     : 'All key events';
   const missedRate = totals.calls ? (totals.missed / totals.calls) * 100 : 0;
@@ -6406,7 +6575,9 @@ function blendRenderKpis(model){
     }),
     blendKpiCard({
       src:'ga', label:'Key events',
-      value: model.available.ga ? formatMetricValue(totals.keyEvents) : '—',
+      // Attributed credit can be fractional under a data-driven model, which is
+      // how GA4 prints it and how the section below formats it.
+      value: model.available.ga ? formatAttributedValue(totals.keyEvents) : '—',
       delta: model.available.ga ? d(totals.keyEvents, prev.keyEvents) : null,
       sub: model.available.ga
         ? `${escapeHtml(eventLabel)} · <b>${cvr.toFixed(2)}%</b> of ${escapeHtml(String(model.segmentNoun).toLowerCase())}`
@@ -6684,6 +6855,7 @@ function blendGaEventsSection(model){
   const prevMap = new Map(model.ga.eventsPrev.map(row => [row.key, row]));
   const channelSel = BLEND.filters.keyChannels;
   const channelActive = !!(channelSel && channelSel.size);
+  const attributedChannels = model.ga.byChannelAttributed !== false;
   // With a channel filter on, totals must come from the event x channel report
   // rather than the event totals, or the numbers would ignore the filter.
   let rows;
@@ -6693,9 +6865,11 @@ function blendGaEventsSection(model){
       const eventName = row.dims?.[0] || '';
       const channel = row.dims?.[1] || '';
       if (!eventName || !channelSel.has(channel)) return;
-      const entry = byEvent.get(eventName) || { key:eventName, keyEvents:0, eventCount:0 };
+      const entry = byEvent.get(eventName) || { key:eventName, keyEvents:0, eventCount:null };
       entry.keyEvents += row.keyEvents;
-      entry.eventCount += row.eventCount;
+      // Event count is not served alongside an attributed channel, so it stays
+      // null rather than summing to a misleading zero.
+      if (!attributedChannels) entry.eventCount = Number(entry.eventCount || 0) + row.eventCount;
       byEvent.set(eventName, entry);
     });
     rows = Array.from(byEvent.values()).map(row => Object.assign(row, { prev:null }));
@@ -6727,6 +6901,9 @@ function blendGaEventsSection(model){
     filters,
     body:`
       ${blendChannelChips(model)}
+      ${model.ga.byChannelError
+        ? `<div class="blend-hint">GA4 would not serve the attributed channel split for this property, so these channels are session-scoped and will not match Advertising → Key event performance.</div>`
+        : `<div class="blend-hint">Channels are credited the way Advertising → Key event performance does it, by primary channel group under the property's attribution model — not the session channel used by Traffic acquisition.</div>`}
       ${channelActive ? `<div class="blend-hint">Filtered to ${escapeHtml(Array.from(channelSel).join(', '))}. Period comparison is unavailable while a channel filter is active.</div>` : ''}
       <div class="blend-table-shell">
         <table class="blend-table">
@@ -6739,8 +6916,8 @@ function blendGaEventsSection(model){
             ${rows.map(row => `
               <tr>
                 <td><span class="blend-name" title="${escapeHtml(row.key)}">${escapeHtml(row.key || '—')}</span></td>
-                <td class="num">${escapeHtml(formatMetricValue(row.keyEvents))}${blendDeltaTag(row.keyEvents, row.prev)}${blendBar(row.keyEvents, max, 'ga')}</td>
-                <td class="num">${escapeHtml(formatMetricValue(row.eventCount))}</td>
+                <td class="num">${escapeHtml(formatAttributedValue(row.keyEvents))}${blendDeltaTag(row.keyEvents, row.prev)}${blendBar(row.keyEvents, max, 'ga')}</td>
+                <td class="num">${row.eventCount == null ? '—' : escapeHtml(formatMetricValue(row.eventCount))}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -7076,13 +7253,13 @@ function blendSetAllEvents(mode){
 
 /* ---------- channel filter for the key-events table ---------- */
 function blendChannelOptions(model){
-  // These chips filter model.ga.byChannel, so they have to be built from it.
-  // Sourcing them from ga.channels - a different report, on a different
-  // dimension - meant a chip could name a channel that never appears in the
-  // rows being filtered, and selecting it emptied the table.
   const set = new Set();
+  // Prefer the channels the key-event rows actually carry. Those come from the
+  // attributed dimension, which does not always produce the same set of names as
+  // the session-scoped trend — "Unassigned" in particular shows up under
+  // attribution and never in the session channel group.
   (model?.ga?.byChannel || []).forEach(row => {
-    const name = row.dims?.[1];
+    const name = row.dims?.[1] || '';
     if (name) set.add(name);
   });
   if (!set.size) (model?.ga?.channels || []).forEach(name => { if (name) set.add(name); });
