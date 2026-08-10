@@ -8447,10 +8447,17 @@ html[data-mode="panel"] .cell.date-range-slot .switch-inline.range-compare .swit
       <div class="cell ga-mode-keyevents hidden">
         <label>Breakdown</label>
         <select id="gaKeyBreakdown">
-          <option value="sessionDefaultChannelGroup">sessionDefaultChannelGroup</option>
-          <option value="country">country</option>
-          <option value="deviceCategory">deviceCategory</option>
-          <option value="pagePathPlusQueryString">pagePathPlusQueryString</option>
+          <optgroup label="Attribution — Advertising → Key event performance">
+            <option value="primaryChannelGroup">Primary channel group</option>
+          </optgroup>
+          <optgroup label="Session — Reports → Acquisition">
+            <option value="sessionDefaultChannelGroup">Session default channel group</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="country">Country</option>
+            <option value="deviceCategory">Device category</option>
+            <option value="pagePathPlusQueryString">Page path and query string</option>
+          </optgroup>
         </select>
       </div>
 
