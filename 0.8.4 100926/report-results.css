@@ -1,0 +1,121 @@
+/* Report content only. Shell, navigation and report controls use their existing styles. */
+.main :is(.blend-kpis, .insight-kpi-grid, .metric-strip, .ads-kpis, .gbp-kpis, .marketing-metrics) {
+  gap: 8px !important;
+  align-items: stretch;
+}
+
+.main :is(.blend-kpis, .insight-kpi-grid, .metric-strip, .ads-kpis, .gbp-kpis, .marketing-metrics)
+  > :is(.blend-kpi, .insight-kpi, .metric-tile, .gbp-kpi, div) {
+  min-width: 0;
+  padding: 11px 12px !important;
+  border: 1px solid rgba(218, 242, 227, .13) !important;
+  border-radius: 10px !important;
+  background: rgba(188, 221, 203, .055) !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+
+#panelGbp .gbp-kpis > button.gbp-kpi:is(:hover, .is-charted) {
+  border-color: rgba(91, 224, 150, .52) !important;
+  background: rgba(91, 224, 150, .11) !important;
+}
+
+.main :is(.blend-kpi__label, .insight-kpi__label, .metric-tile > span, .ads-kpis > div > span,
+          .gbp-kpi > span, .marketing-metrics > div > span) {
+  color: #b6c8bf !important;
+  font-size: 11px !important;
+  font-weight: 650;
+  letter-spacing: 0 !important;
+  line-height: 1.35;
+  text-transform: none !important;
+  overflow-wrap: anywhere;
+}
+
+.main :is(.blend-kpi__value, .insight-kpi__value) {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+.main :is(.blend-kpi__value, .insight-kpi__value, .metric-tile, .ads-kpis > div,
+          .gbp-kpi, .marketing-metrics > div) > strong {
+  min-width: 0;
+  color: #eef8f2 !important;
+  font-size: clamp(17px, 4.5vw, 24px) !important;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.main :is(.blend-kpi__sub, .ads-kpis small, .gbp-kpi small) {
+  color: #b6c8bf;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.main :is(.blend-section, .insight-stage, .sd-card, .summary-card,
+          .ads-trend, .ads-table-section, .gbp-inspector, .marketing-overview) {
+  min-width: 0;
+  border-color: rgba(218, 242, 227, .13) !important;
+  box-shadow: none !important;
+}
+
+.main :is(.blend-section__head, .result-stage__head, .sd-card__head, .summary-card__header,
+          .ads-section-head, .gbp-report-heading, .gbp-chart-head) {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.main :is(.blend-table-shell, .insight-table-shell, .ads-table-scroll, .gbp-table-wrap) {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.main :is(.blend-table-shell, .insight-table-shell, .ads-table-scroll, .gbp-table-wrap)
+  tbody tr:hover > td {
+  background-color: rgba(188, 221, 203, .075);
+}
+
+.main :is(.ads-section-head, .gbp-table-toolbar, .gbp-kpis, .sd-card__head)
+  :is(button, select, input, summary):focus-visible {
+  outline: 2px solid #7fe6af !important;
+  outline-offset: 2px;
+}
+
+.report-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 10px 12px;
+  border: 1px solid rgba(218, 242, 227, .13);
+  border-radius: 10px;
+  color: #d5e8dc;
+  background: rgba(188, 221, 203, .055);
+}
+
+.report-loading > span {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border: 2px solid rgba(127, 230, 175, .22);
+  border-top-color: #7fe6af;
+  border-radius: 50%;
+  animation: report-loading-turn .75s linear infinite;
+}
+
+@keyframes report-loading-turn { to { transform: rotate(1turn); } }
+
+@media (max-width: 380px) {
+  html[data-mode="panel"] .main :is(.blend-kpis, .insight-kpi-grid, .metric-strip,
+                                  .ads-kpis, .gbp-kpis, .marketing-metrics) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-loading > span,
+  #panelGoogleAds :is(.ads-kpis, .ads-trend) { animation: none; }
+}

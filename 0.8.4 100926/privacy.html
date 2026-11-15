@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Marketer Companion – Privacy Policy</title>
+<style>
+/* =========================
+   Material You × iOS Glass
+   (exact to approved mockup)
+   ========================= */
+
+/* --- Tokens --- */
+:root{
+  /* light */
+  --bg: #dfece6;
+  --bg2:#cfe2d9;
+  --ink:#0b0f12;
+  --muted:#556760;
+
+  --glass: rgba(255,255,255,.55);
+  --glass-2: rgba(255,255,255,.45);
+  --hair:#7db79d33;          /* hairline */
+  --accent:#1fb86b;          /* emerald */
+  --accent-2:#0ea65f;
+
+  --r-xl: 26px;
+  --r-lg: 18px;
+  --shadow: 0 30px 80px rgba(9,14,12,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0b0f12; --bg2:#0e1418;
+    --ink:#e8f3ec; --muted:#a3b6ab;
+    --glass: rgba(18,24,28,.55);
+    --glass-2: rgba(22,28,32,.45);
+    --hair:#8fc1a64a;
+    --shadow: 0 30px 80px rgba(0,0,0,.55);
+  }
+}
+
+/* ---- Background (soft blobs + grain) ---- */
+html,body{height:100%}
+body{
+  margin:0; color:#0e101a;
+  font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+  background:
+    radial-gradient(1200px 800px at -12% -18%, var(--bg2) 0%, transparent 60%),
+    radial-gradient(900px 700px at 110% 0%, var(--bg) 0%, transparent 65%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+}
+.bg-noise{
+  position:fixed; inset:-20%; pointer-events:none; z-index:0; opacity:.35;
+  background-image:url("data:image/svg+xml;utf8,\
+  <svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'>\
+  <filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 .05 0'/></feComponentTransfer></filter>\
+  <rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size:160px 160px;
+}
+
+/* ---- Window card (matches mockup outer shape) ---- */
+.window{
+  max-width: 920px;
+  margin: 54px auto 64px;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+  border-radius: var(--r-xl);
+  border:1px solid var(--hair);
+  background: linear-gradient(180deg, rgba(255,255,255,.66), rgba(255,255,255,.48));
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: var(--shadow), inset 0 1px rgba(255,255,255,.35);
+  overflow: hidden;
+}
+
+/* ---- Header band (glass, with brand & check chip) ---- */
+.head{
+  padding: 28px 30px 6px 30px;
+  position: relative;
+}
+.brand{
+  display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+}
+.brand h1{
+  margin:0; font-size:28px; line-height:1.15; font-weight:700;
+  letter-spacing:.1px;
+}
+.brand h1 .mkt{ color: var(--accent); }
+.brand h1 .sep{ opacity:.25; font-weight:400; padding:0 6px }
+.brand h1 .pol{ font-weight:600 }
+
+.meta{ margin:8px 4px 20px; color:#0e101a }
+
+/* floating check chip (top-right) */
+.check{
+  position:absolute; right:22px; top:22px;
+  width:34px; height:34px; border-radius:12px;
+  background: radial-gradient(65% 65% at 30% 30%, #9ae9bf, var(--accent));
+  box-shadow: inset 0 1px rgba(255,255,255,.35), 0 10px 24px rgba(31,184,107,.35);
+  display:grid; place-items:center; color:white;
+}
+.check svg{ width:18px; height:18px }
+
+/* ---- Content area ---- */
+.content{ padding: 12px 26px 28px; }
+.card{
+  border-radius: 22px;
+  border:1px solid var(--hair);
+  background: linear-gradient(180deg, rgba(255,255,255,.66), rgba(255,255,255,.48));
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: var(--shadow), inset 0 1px rgba(255,255,255,.35);
+  padding:18px 20px;
+  margin:16px 0;
+}
+
+/* “Summary” info card with left badge, exactly like mockup */
+.card.info{ position:relative; padding-left:72px }
+.card.info .badge{
+  position:absolute; left:22px; top:22px;
+  width:38px; height:38px; border-radius:14px;
+  border:1px solid var(--hair);
+  background: linear-gradient(180deg, rgba(31,184,107,.22), rgba(31,184,107,.12));
+  box-shadow: inset 0 1px rgba(255,255,255,.25);
+  display:grid; place-items:center;
+}
+.card.info .badge svg{ width:18px; height:18px; color: var(--accent) }
+
+/* Section titles & lists */
+h2{ font-size:18px; margin:0 0 10px }
+ul{ margin:0; padding:0 0 0 22px }
+li{ margin:8px 0 6px }
+
+/* Inline code chips */
+code{
+  background: rgba(22,28,32,.5);
+  border:1px solid var(--hair);
+  padding:2px 8px;
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: .92em;
+}
+@media (prefers-color-scheme: dark){
+  code{ background: rgba(22,28,32,.31) }
+}
+
+/* Print */
+@media print{
+  body{ background:#fff }
+  .bg-noise,.check{ display:none }
+  .window{ box-shadow:none; border-color:#ddd; background:#fff }
+  .card{ box-shadow:none; background:#fff }
+}
+</style>
+</head>
+<body>
+<div class="bg-noise" aria-hidden="true"></div>
+
+<!-- Outer window that matches the exact rounded, stacked-glass look -->
+<div class="window">
+  <header class="head">
+    <div class="brand">
+      <!-- Keep the exact text but style visually like the mockup -->
+      <h1>
+        <span class="mkt">Marketer</span>
+        <span>Companion</span>
+        <span class="sep">–</span>
+        <span class="pol">Privacy Policy</span>
+      </h1>
+    </div>
+    <div class="check" aria-hidden="true">
+      <!-- check glyph -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <p class="meta">Last updated: 6 August 2026 · Version 0.8.0</p>
+  </header>
+
+  <main class="content">
+    <section class="card info">
+      <div class="badge" aria-hidden="true">
+        <!-- info glyph -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 10v6"></path>
+          <path d="M12 7h.01"></path>
+        </svg>
+      </div>
+      <p><strong>Summary:</strong> Marketer Companion analyses the active page and, when you choose to connect them, reads reporting data from Google Search Console, Google Analytics 4, Google Ads, Google Business Profile, Google Merchant Center, and CallRail. Business Profile changes are sent only after you preview and explicitly submit them. Marketer Companion does not collect your data: there is no developer server to collect it to, no analytics, no error reporting and no advertising code. The developer never receives your data and does not sell it. Data is processed in the extension, in your browser, and by the services you deliberately connect.</p>
+    </section>
+
+    <section class="card">
+      <h2>What data we access</h2>
+      <ul>
+        <li><strong>Google Search Console:</strong> Verified site list, URL Inspection results, and Search Analytics aggregates (clicks, impressions, CTR, position).</li>
+        <li><strong>Google Analytics (GA4):</strong> Aggregate metrics via the Analytics Data API and property/stream metadata via the Admin API.</li>
+        <li><strong>Google Ads:</strong> Accessible customer IDs and aggregate campaign, ad group, keyword, search-term, asset, cost, click and conversion reporting through the Google Ads API.</li>
+        <li><strong>Google Business Profile:</strong> Authorized accounts and locations, business information, daily performance, monthly search keyword impressions, reviews including reviewer display names and replies, available Google changes, verification status, posts, media and action links. Review replies, posts, selected profile edits and photo additions are submitted only after a preview and an explicit publish action.</li>
+        <li><strong>Google Merchant Center:</strong> Accessible merchant accounts and aggregate product performance, status, pricing and market-insight reports through Merchant API.</li>
+        <li><strong>Your email address:</strong> Shown inside the extension UI to indicate the signed-in account (via <code>openid email</code> scope).</li>
+        <li><strong>CallRail:</strong> When you enter your own API key, the extension requests the accounts, companies, call-summary metrics, sources, campaign attribution and filters available to that key.</li>
+        <li><strong>CallRail individual calls:</strong> When you open the Calls view, the extension additionally requests the call records for the selected range. These include caller name, caller phone number, caller city and state, tracking number, call duration, answered status, device, lead status, source, campaign, keywords, landing page and referrer.</li>
+        <li><strong>CallRail recordings and transcripts:</strong> When you expand a single call, the extension requests that call's detail record. If your CallRail plan includes call transcription, that record contains the machine-generated transcript, an automated call summary and call highlights, and these are displayed inside the extension. Recording audio is not downloaded or played by the extension; the recording link opens in CallRail.</li>
+        <li><strong>Active-page data:</strong> Only after you open or use a page-analysis feature, the extension may inspect the current page's URL, HTML metadata, headings, links, images, canonical and robots directives, structured data, scripts, iframes, marketing-tag identifiers, and related response information needed to produce the requested audit.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>How data is used</h2>
+      <ul>
+        <li>Google data is used only to display the Search Console and GA4 reports and diagnostics you request.</li>
+        <li>CallRail data is used only to display and export the attribution, call-summary, individual-call and transcript views you request.</li>
+        <li>Caller personal data (names, phone numbers, locations and transcript text) is displayed for the call you open and is held only in the extension's memory and the session cache described below. It is never sent anywhere other than back to CallRail's own API.</li>
+        <li>Active-page data is used only to create on-page SEO, structured-data, indexing, redirect and marketing-tag diagnostics inside the extension.</li>
+        <li>The extension sends requests directly from your browser to Google APIs, CallRail APIs, and the public page or validator you deliberately ask it to open or inspect. No data is sent to a developer-controlled analytics, advertising or profiling service.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Storage, caching and retention</h2>
+      <ul>
+        <li><strong>Google authentication (default):</strong> OAuth access tokens are managed by Chrome's <code>chrome.identity</code> service and are not saved by the extension in persistent local storage. The signed-in email may be stored locally so the extension can show which account is connected.</li>
+        <li><strong>Google authentication (multi-account mode):</strong> If multi-account sign-in has been configured for this installation, the extension uses an authorisation-code flow with PKCE instead. In that mode an OAuth refresh token and a short-lived access token are stored for each connected account in <code>chrome.storage.local</code>, so that you can switch accounts without signing in again. These tokens never leave your browser except in requests to Google. Removing an account, or signing out, revokes the refresh token with Google and deletes it locally.</li>
+        <li><strong>CallRail credential:</strong> The API key is stored in <code>chrome.storage.session</code>, is available only to the extension, and is cleared when the browser session ends or when you choose Disconnect.</li>
+        <li><strong>Google Ads manager setting:</strong> If supplied, the optional manager customer ID is stored in <code>chrome.storage.session</code> and cleared when the browser session ends or when you choose Clear manager ID. No Google Ads developer token is requested or stored.</li>
+        <li><strong>Business Profile reports:</strong> Business Profile content and calculated results stay in memory. The most recent report is held in the browser's session storage so that reopening the popup does not refetch it; that storage is never written to disk, is scoped to the signed-in Google identity, and is discarded when the browser session ends. It is also cleared on sign-out and account changes. Reports are not saved to the report caches. Only user preferences and explicitly saved client-to-location identifiers are stored persistently. No review text is sent to an AI service.</li>
+        <li><strong>Other report caches:</strong> Property lists, account metadata and report results from other integrations may be cached in <code>chrome.storage.local</code> to improve speed and reduce API requests. Report caches are limited and refreshed or replaced as you use the extension.</li>
+        <li><strong>Session report cache:</strong> The reports you have loaded, including CallRail call records and any transcript you opened, are kept in <code>chrome.storage.session</code> so that closing and reopening the popup or side panel does not discard your work. This store is cleared automatically by Chrome when the browser session ends.</li>
+        <li><strong>Preferences:</strong> Interface choices, selected properties, date ranges and filters may be stored locally until the extension is removed or the relevant setting is changed.</li>
+        <li>Signing out clears the extension's Google account profile, any stored Google tokens, and the Google report caches. Disconnecting CallRail clears the session key and all CallRail caches, including cached call records and transcripts. Removing the extension clears its Chrome-managed storage.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Permissions and user control</h2>
+      <ul>
+        <li>Google sign-in is initiated only when you click <strong>Connect Google</strong>. The extension requests <code>openid</code>, <code>email</code>, <code>webmasters.readonly</code>, <code>analytics.readonly</code>, <code>adwords</code>, <code>content</code>, and <code>business.manage</code>. Business Profile's scope permits management; the interface requires explicit submission for any change.</li>
+        <li><code>activeTab</code> and <code>scripting</code> are used to inspect only the page you are actively viewing when you invoke an applicable feature. The extension does not request permanent access to all browsing history.</li>
+        <li>You can use page-level audit features without connecting Google or CallRail, and you can disconnect either service independently.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Third-party resources</h2>
+      <ul>
+        <li>The interface loads the Plus Jakarta Sans typeface from Google Fonts (<code>fonts.googleapis.com</code> and <code>fonts.gstatic.com</code>). This request is made by your browser when the extension interface is opened and is subject to Google's own privacy policy. No extension data is included in it.</li>
+        <li>No analytics, advertising, error-reporting or profiling service of any kind is embedded in this extension.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Google API Limited Use</h2>
+      <p>Marketer Companion's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+      <p>Google user data is not used for advertising, credit-worthiness, lending, surveillance, or training generalised artificial-intelligence or machine-learning models, and is not sold or transferred except as necessary to provide the user-requested extension features, comply with law, or address security and abuse.</p>
+    </section>
+
+    <section class="card">
+      <h2>Contact</h2>
+      <p>For questions, access requests or data deletion, email <a href="mailto:jayant.solanki@cibirix.com">jayant.solanki@cibirix.com</a>. Because the extension stores data only inside your own browser, you can also erase everything it holds at any time by signing out, disconnecting CallRail, or removing the extension from <code>chrome://extensions</code>.</p>
+    </section>
+  </main>
+</div>
+</body>
+</html>

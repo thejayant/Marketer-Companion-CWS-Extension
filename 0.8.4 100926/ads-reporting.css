@@ -1,0 +1,93 @@
+/* Google Ads workspace: compact controls, progressive filters, readable data. */
+#panelGoogleAds{container:ads-workspace / inline-size;gap:0!important;}
+#panelGoogleAds .panel-top{display:flex;flex-wrap:nowrap;align-items:flex-start;gap:10px;margin-bottom:8px;}
+#panelGoogleAds .panel-top>div:first-child{min-width:0;flex:1;}
+#panelGoogleAds .panel-top p{font-size:11px!important;margin-top:4px!important;}
+#panelGoogleAds .panel-top .context-actions{flex:0 0 auto;margin:0!important;}
+#panelGoogleAds #adsRun{min-height:34px!important;height:34px!important;padding:7px 10px!important;font-size:11px!important;}
+#panelGoogleAds .ads-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:14px 0 8px;}
+#panelGoogleAds label,#panelGoogleAds .ads-account{min-width:0;}
+#panelGoogleAds .ads-controls>label,#panelGoogleAds .ads-account{display:flex;flex-direction:column;gap:5px;}
+#panelGoogleAds .ads-controls label>span,#panelGoogleAds .ads-filter-grid label>span,#panelGoogleAds .ads-date-pair label>span{color:var(--muted);font-size:11px;font-weight:650;}
+#panelGoogleAds input,#panelGoogleAds select{width:100%;min-width:0;max-width:100%;font:inherit;font-size:12px!important;color:var(--text);background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 10px!important;min-height:40px!important;}
+#panelGoogleAds input[type=date]{color-scheme:dark;}
+#panelGoogleAds select option,#panelGoogleAds select optgroup{background:#111713;color:var(--text);}
+#panelGoogleAds select[multiple]{min-height:96px;padding:4px;}
+#panelGoogleAds select[multiple] option{padding:5px 6px;border-radius:4px;}
+#panelGoogleAds button:disabled{opacity:.45;cursor:default;}
+#panelGoogleAds .ads-account{grid-column:1 / -1;}
+#panelGoogleAds .ads-account-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+#panelGoogleAds .ads-account-head>label{font-size:11px;color:var(--muted);font-weight:650;}
+#panelGoogleAds #adsRefreshAccounts{width:32px!important;min-width:32px!important;height:32px!important;min-height:32px!important;padding:6px!important;}
+#panelGoogleAds #adsRefreshAccounts svg{width:16px;height:16px;}
+#panelGoogleAds .ads-account-meta,#panelGoogleAds .ads-date-hint{font-size:10px;color:var(--muted);overflow-wrap:anywhere;}
+#panelGoogleAds .ads-date-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;grid-column:1 / -1;}
+#panelGoogleAds .ads-date-pair label{display:flex;flex-direction:column;gap:5px;}
+#panelGoogleAds [hidden]{display:none!important;}
+#panelGoogleAds .ads-date-hint{margin:4px 0 12px;}
+#panelGoogleAds .ads-filters{border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);padding:10px 0;margin:10px 0;}
+#panelGoogleAds .ads-filters>summary{cursor:pointer;font-size:12px;font-weight:650;display:flex;align-items:center;gap:8px;list-style:none;}
+#panelGoogleAds .ads-filters>summary::before{content:'›';font-size:18px;transition:transform .16s ease;}
+#panelGoogleAds .ads-filters[open]>summary::before{transform:rotate(90deg);}
+#panelGoogleAds #adsFilterCount{font-size:10px;font-weight:400;color:var(--muted);margin-left:auto;}
+#panelGoogleAds .ads-filter-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:12px;}
+#panelGoogleAds .ads-filter-grid label{display:flex;flex-direction:column;gap:5px;}
+#panelGoogleAds .ads-filter-help,#panelGoogleAds .ads-table-note,#panelGoogleAds .ads-chart-note{font-size:10px;color:var(--muted);line-height:1.5;margin:8px 0;}
+#panelGoogleAds .ads-condition-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;font-size:11px;}
+#panelGoogleAds .ads-condition-head button,#panelGoogleAds #adsResetFilters{min-height:30px;padding:5px 9px;font-size:11px;}
+#panelGoogleAds .ads-threshold{display:grid;grid-template-columns:minmax(0,1.2fr) 46px minmax(0,.8fr) 26px;gap:5px;align-items:center;margin-top:7px;}
+#panelGoogleAds .ads-threshold select,#panelGoogleAds .ads-threshold input{padding:6px;}
+#panelGoogleAds .ads-threshold button{padding:4px;min-width:0;border:0;background:transparent;font-size:18px;}
+#panelGoogleAds .ads-filter-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;}
+#panelGoogleAds .ads-filter-footer p{margin:0;}
+#panelGoogleAds .ads-report-note{color:var(--muted);font-size:11px;line-height:1.5;margin:10px 0;}
+#panelGoogleAds #adsStatus{font-size:11px;line-height:1.5;overflow-wrap:anywhere;min-height:18px;}
+#panelGoogleAds #adsStatus.ads-status--error{color:#ffb5ac;}
+#panelGoogleAds .ads-result-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px;margin:20px 0 14px;}
+#panelGoogleAds h4{font-size:13px;font-weight:700;margin:0;}
+#panelGoogleAds .ads-result-head p{font-size:10px;color:var(--muted);margin:5px 0 0;overflow-wrap:anywhere;}
+#panelGoogleAds .ads-result-stamp{color:var(--accent);font-size:10px;padding:4px 0;}
+#panelGoogleAds .ads-result-stamp.is-stale{color:#f1b84a;}
+#panelGoogleAds .ads-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px;row-gap:14px;padding:16px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);}
+#panelGoogleAds .ads-kpis>div{display:flex;flex-direction:column;gap:5px;min-width:0;}
+#panelGoogleAds .ads-kpis span{color:var(--muted);font-size:10px;}
+#panelGoogleAds .ads-kpis strong{font-size:19px;line-height:1.2;font-weight:700;letter-spacing:-.4px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;}
+#panelGoogleAds .ads-kpis small{font-size:9px;color:var(--muted);line-height:1.4;}
+#panelGoogleAds .ads-trend,#panelGoogleAds .ads-table-section{margin-top:18px;}
+#panelGoogleAds .ads-section-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;margin-bottom:10px;}
+#panelGoogleAds .ads-section-head label{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--muted);margin-left:auto;}
+#panelGoogleAds .ads-section-head select{width:auto;min-height:30px;padding:4px 7px;font-size:11px;}
+#panelGoogleAds .ads-section-head button{font-size:10px;padding:5px 8px;min-height:30px;}
+#panelGoogleAds #adsChart svg{width:100%;height:auto;display:block;overflow:visible;}
+#panelGoogleAds #adsChart text{fill:var(--muted);font-size:10px;}
+#panelGoogleAds .ads-gridline{stroke:rgba(255,255,255,.09);stroke-width:1;}
+#panelGoogleAds .ads-current-line{fill:none;stroke:var(--accent);stroke-width:2;}
+#panelGoogleAds .ads-previous-line{fill:none;stroke:#a3b6ab;stroke-width:1.5;stroke-dasharray:5 4;}
+#panelGoogleAds #adsChart circle{fill:var(--accent);opacity:.45;}
+#panelGoogleAds #adsChart circle.is-previous{fill:#a3b6ab;}
+#panelGoogleAds #adsChart circle:hover{opacity:1;r:5;}
+#panelGoogleAds .ads-table-tools{display:flex;align-items:flex-end;flex-wrap:wrap;gap:8px;}
+#panelGoogleAds .ads-table-tools>label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted);}
+#panelGoogleAds .ads-table-search{flex:1;min-width:120px;}
+#panelGoogleAds .ads-columns{position:relative;font-size:11px;}
+#panelGoogleAds .ads-columns summary{cursor:pointer;min-height:36px;padding:10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;}
+#panelGoogleAds .ads-columns>div{position:absolute;top:calc(100% + 5px);right:0;z-index:30;width:220px;max-height:240px;overflow:auto;padding:10px;background:#111713;border:1px solid rgba(255,255,255,.15);border-radius:8px;box-shadow:0 8px 28px #0008;}
+#panelGoogleAds .ads-columns label{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;}
+#panelGoogleAds .ads-columns input{width:14px;height:14px;min-height:0;accent-color:var(--accent);}
+#panelGoogleAds .ads-table-scroll{overflow:auto;max-height:500px;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);}
+#panelGoogleAds table{border-collapse:collapse;width:100%;font-size:11px;font-variant-numeric:tabular-nums;}
+#panelGoogleAds th{position:sticky;top:0;z-index:1;background:#111713;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.14);}
+#panelGoogleAds th button{border:0;border-radius:0;background:transparent;padding:10px;font-size:10px;white-space:nowrap;box-shadow:none;}
+#panelGoogleAds td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.055);white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis;}
+#panelGoogleAds td.num{text-align:right;}
+#panelGoogleAds tbody tr:hover{background:rgba(48,209,88,.035);}
+#panelGoogleAds .ads-cell-change{display:block;font-size:9px;color:var(--muted);margin-top:3px;}
+#panelGoogleAds .ads-pagination{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:10px;font-size:10px;color:var(--muted);}
+#panelGoogleAds .ads-pagination>div{display:flex;align-items:center;gap:8px;}
+#panelGoogleAds .ads-pagination button{min-height:30px;font-size:10px;padding:5px 8px;}
+#panelGoogleAds #adsResult[aria-busy=true]{opacity:.6;}
+#panelGoogleAds .ads-kpis,#panelGoogleAds .ads-trend{animation:ads-reveal .18s ease-out;}
+@keyframes ads-reveal{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@container ads-workspace (min-width:400px){#panelGoogleAds .ads-controls,#panelGoogleAds .ads-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));}#panelGoogleAds .ads-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@container ads-workspace (min-width:640px){#panelGoogleAds .ads-controls{grid-template-columns:repeat(3,minmax(0,1fr));}#panelGoogleAds .ads-kpis{grid-template-columns:repeat(5,minmax(0,1fr));}}
+@media(prefers-reduced-motion:reduce){#panelGoogleAds *,#panelGoogleAds *::before{animation:none!important;transition:none!important;}}

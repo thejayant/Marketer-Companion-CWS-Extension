@@ -1,0 +1,20 @@
+import {createAdsUI} from '../ads-ui.js';
+import {api,account,customerId,setPreset} from './ads-fixture.js';
+const ui=createAdsUI({escape:value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),request:async(type,payload)=>{
+  if(type==='googleAdsGetOptions')return api.options(payload);
+  setPreset(payload.preset);const data=await api.run(payload);window.preview.last=data;return data;
+}});
+document.querySelectorAll('.section').forEach(el=>el.classList.add('hidden'));
+document.getElementById('scContext').classList.add('hidden');
+document.getElementById('panelGoogleAds').classList.remove('hidden');
+document.querySelectorAll('.nav button').forEach(el=>el.classList.toggle('active',el.id==='navGoogleAds'));
+document.querySelectorAll('.nav button').forEach(el=>el.addEventListener('click',()=>{}));
+document.getElementById('collapseSidebar').addEventListener('click',()=>document.querySelector('.shell').classList.toggle('sidebar-collapsed'));
+document.getElementById('version').textContent='0.8.4 · reporting preview';
+document.getElementById('adsRefreshAccounts').addEventListener('click',()=>void ui.accountChanged());
+document.getElementById('adsRun').addEventListener('click',()=>void ui.run());
+window.preview={ui,last:null};
+ui.mount();ui.setAccounts([{customerId,descriptiveName:account.descriptiveName,currencyCode:account.currencyCode,timeZone:account.timeZone,manager:false}]);
+await ui.accountChanged();
+document.getElementById('adsCompare').value='previous_period';
+await ui.run();

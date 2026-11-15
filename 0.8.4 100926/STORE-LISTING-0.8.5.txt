@@ -1,0 +1,155 @@
+MARKETER COMPANION 0.8.5 — CHROME WEB STORE LISTING COPY
+=========================================================
+
+Paste each block into the matching field in the Developer Dashboard.
+Character counts are the store's limits, not suggestions.
+
+
+1. ITEM NAME  (max 75 — currently 44)
+-------------------------------------
+Marketer Companion — SEO & Marketing Toolkit
+
+
+2. SUMMARY  (max 132 — currently 125, must match manifest "description")
+------------------------------------------------------------------------
+See how the sites and business listings you own are performing, and audit the SEO and structured data of the page you are on.
+
+   The 0.8.4 submission was rejected for keyword spam (reference "Yellow
+   Argon") on the previous summary, which read as a list of product names:
+   "GSC, GA4, Google Ads, Business Profile, Merchant Center and CallRail
+   reports, plus on-page SEO and structured-data audits."
+   Do not reintroduce a comma-separated run of integration names in the
+   summary, the item name, or the first lines of the description. Name the
+   integrations in context, in sentences, further down the page — that is
+   where they belong and where the policy allows them.
+
+
+3. CATEGORY
+-----------
+Primary:   Workflow & Planning
+Alternate: Developer Tools  (pick this only if the on-page and structured-data
+           audits are the story you want to lead with)
+
+
+4. LANGUAGE
+-----------
+English (United Kingdom)   — the interface uses British spelling
+                             ("authorise", "analyse", "colour").
+
+
+5. DETAILED DESCRIPTION  (max 16,000)
+-------------------------------------
+Marketer Companion puts the reports you already pay attention to in one place,
+inside the browser, without a middleman server.
+
+Sign in with your own Google account and the extension reads the properties,
+accounts and locations that account can already see. Nothing is uploaded
+anywhere: the browser talks directly to Google's APIs and to CallRail, and the
+results stay on your machine.
+
+WHAT IT REPORTS
+
+• Blended report — Search Console, GA4 and CallRail describing one slice of
+  traffic at a time, with period-over-period comparison and a daily trend. Every
+  source agrees on which slice that is: each segment defines itself twice, once
+  for the GA4 channel group and once for the CallRail call source, so sessions,
+  key events and calls always describe the same audience.
+
+• Search Console — clicks, impressions, CTR and average position by query, page,
+  country and device, plus URL inspection: coverage state, canonical, last crawl
+  and robots status for any page.
+
+• Google Analytics 4 — 30 dimensions and 18 metrics against the Analytics Data
+  API, key events, and CSV export.
+
+• Google Ads — campaign, ad group, keyword, search term, asset and conversion
+  reporting through the Google Ads API, with account timezone and currency,
+  totals, trends, comparisons and CSV export.
+
+• Google Business Profile — visibility, website clicks, call clicks and
+  direction requests across one location or a whole portfolio; month-by-month
+  search keywords; review triage with reply drafting; and a content inventory of
+  posts and photos.
+
+• Merchant Center — product performance and status, price competitiveness,
+  price insights, best sellers and competitive visibility.
+
+• CallRail — call volume, call sources, individual records and transcripts.
+
+• On-page audit — title, meta description, headings, links and images for the
+  page you are looking at. No API and no sign-in needed.
+
+• Structured data — JSON-LD, Microdata and RDFa on the current page, rendered as
+  readable cards rather than raw markup.
+
+BUILT FOR PEOPLE RUNNING SEVERAL CLIENTS
+
+Save a client once and the extension remembers which Search Console property,
+GA4 property, CallRail company and Business Profile locations belong to them.
+Switching client switches every panel at once. Mappings are scoped to the Google
+identity that saved them, so one browser profile can hold several accounts
+without their data mixing.
+
+HONEST NUMBERS
+
+The reports are built to be defensible in front of a client:
+
+• Partial data is labelled partial. If three of six locations fail to load, you
+  are told so above the totals, and the totals are never presented as a complete
+  portfolio figure.
+• Missing days are gaps, not zeros.
+• Privacy-thresholded keyword counts stay as "<5" and are never substituted into
+  an exact total.
+• A percentage change with no baseline says so instead of showing infinity.
+• Impressions are labelled as the sum of platform and device metrics, not as
+  unique people.
+• Call clicks are described as button clicks, not as answered calls or leads.
+
+WHERE YOUR DATA GOES
+
+Nowhere. There is no developer server, no analytics, no error reporting and no
+advertising code. Google tokens are handled by Chrome's identity service or kept
+locally; your CallRail API key is held for the browser session only. Report
+content lives in the open interface and is cleared when you sign out or switch
+accounts.
+
+REQUIREMENTS
+
+• A Google account with access to the properties you want to report on.
+• For Google Ads, Merchant Center and Business Profile, the Google Cloud project
+  behind the sign-in needs those APIs enabled and the relevant access approved.
+• CallRail is optional and needs an API key from your own CallRail account.
+
+Designed and built by Jayant.
+
+
+6. SCREENSHOTS  (1280×800 or 640×400 PNG/JPEG; at least 1, up to 5)
+-------------------------------------------------------------------
+Shoot these five, in this order. 1280×800, no browser chrome, no real client
+names, no personal email visible in the footer.
+
+  1. Blended report with a comparison running   — caption: "Search Console, GA4
+     and CallRail describing one slice of traffic."
+  2. Google Business Profile overview, KPI tiles and trend visible
+     — caption: "One location or a whole portfolio, with coverage stated."
+  3. Google Ads report with the table and totals
+     — caption: "Campaign, keyword and search-term reporting, direct from the
+       Google Ads API."
+  4. On-page audit on a real public page
+     — caption: "Audit the page you are on. No sign-in needed."
+  5. Structured data cards
+     — caption: "JSON-LD, Microdata and RDFa, read as cards."
+
+
+7. PROMOTIONAL TILES  (optional, improves placement)
+----------------------------------------------------
+Small tile   440×280   Logo on the dark panel background, product name.
+Marquee     1400×560   Only needed if you want featured placement.
+
+
+8. SUPPORT AND LINKS
+--------------------
+Privacy policy URL   REQUIRED — a public https URL. privacy.html ships inside
+                     the package, but the dashboard needs a hosted copy.
+Support URL / email  A monitored address. The store shows it publicly.
+Homepage URL         Optional.

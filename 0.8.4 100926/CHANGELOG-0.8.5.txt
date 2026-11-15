@@ -1,0 +1,136 @@
+MARKETER COMPANION v0.8.5 — 15 Nov 2026
+=======================================
+
+RELEASE
+=======
+
+- Added a native Google Ads API v25 reporting panel.
+- Added a native Merchant API v1 reporting panel.
+- Added optional Google Ads manager-account settings. Developer tokens were
+  sunset on 9 September 2026 and are not requested or sent.
+- Added the Ads and Merchant OAuth scopes to the existing Google sign-in.
+- Both integrations call Google directly; no MCP or proxy is used.
+- Fixed the empty-state Run action in Ads and Merchant Center so it runs the
+  report instead of only reloading the account list after a prior report.
+- Reworked both reporting toolbars into compact controls with custom date
+  calendars; Merchant-only country/category fields now appear when needed.
+- Added a returned-row summary to Merchant product performance and refreshed
+  the Ads and Merchant sidebar icons.
+
+Google Business Profile
+-----------------------
+
+- Added the Business Profile workspace: overview, performance, search keywords,
+  reviews, profile audit, locations and content inventory, with previewed
+  review replies, posts, profile edits and photo additions.
+- Added the business.manage scope and the Business Profile API host
+  permissions to the existing Google sign-in.
+
+User experience
+---------------
+
+- Replaced the Ctrl/Command location multi-select with a searchable checkbox
+  list and a chip summary. Searching or filtering no longer clears a selection.
+- Business Profile KPI tiles now show which metric is charted, with a selected
+  state, pointer and keyboard focus.
+- The impression change column and the keyword previous/change columns appear
+  only when a comparison is selected, instead of a column of "Unavailable".
+- The most recent Business Profile report is kept for the browser session, so
+  reopening the popup restores it instead of refetching every location.
+- Portfolio runs show a progress bar with the location being fetched, the
+  completed count and any failures, next to Cancel.
+
+Business Profile panel redesign
+-------------------------------
+
+- Rebuilt the panel around a sticky context bar: the account, a run summary
+  (locations, dates, comparison, timezone) and a report rail across all seven
+  reports, replacing the report dropdown.
+- Setup is now three labelled steps that collapse once a report runs, with an
+  Edit run control to reopen them, an applied-filter count and a plain-English
+  confirmation of the exact periods being compared.
+- Coverage is stated above the numbers as a complete or partial band instead of
+  a footnote.
+- KPI tiles carry a sparkline, a direction caret and the period change.
+- The trend chart gained a value axis, gridlines, date labels, a dashed
+  previous-period series and a hover crosshair with a readout of both periods.
+- Findings are evidence cards naming the location, the kind and the rule.
+- Added staged motion on report arrival, a drawn trend line and an inspector
+  entrance, all dropped entirely under prefers-reduced-motion.
+
+Business Profile follow-up
+--------------------------
+
+- The context bar is a plain panel header again: no pinned bar, no surface of
+  its own. It blends into the panel like every other workspace and scrolls away
+  with the rest of the report.
+- Moved the column chooser into the table toolbar, where it states how many of
+  the available fields are shown, explains that hidden fields are still fetched,
+  and offers Show all and Reset to default.
+- Removed the Profile audit report. Its checks still power the findings and the
+  location inspector.
+- Content inventory now leads with the most recent records as cards: post or
+  media badge, type, description, location, created date and status, with a
+  thumbnail where Google returns a usable image and a placeholder where it does
+  not. The full table follows unchanged.
+- A report that returns nothing because every location failed now names the
+  failure and what to check, instead of saying no locations matched.
+- Network failures are reported as such: the message names the host that was
+  not reached and the three things worth checking.
+- The panel holds a keepalive port open for the length of a run. Long paginated
+  reports such as reviews and month-by-month keywords could previously be cut
+  short by the MV3 service worker shutting down mid-request, which surfaced as
+  "Failed to fetch".
+
+Packaging
+---------
+
+- The build now writes the upload archive itself. Compress-Archive under Windows
+  PowerShell produced entry names such as icons\icon16.png; ZIP requires forward
+  slashes and Chrome could not resolve the manifest's icons from those names.
+  The build verifies every entry after writing and fails if a name regresses.
+- Version name is now 0.8.5 - 151126.
+
+Navigation
+----------
+
+- The sidebar navigation scrolls again. A later rule set overflow-y:hidden on
+  the nav list while the sidebar itself clips, so in a short window the last
+  entries, Settings among them, could not be reached at all. The list scrolls
+  with the scrollbar still hidden.
+- In the side panel the navigation is a horizontal bar wider than the panel. It
+  could only be scrolled sideways, which a mouse wheel cannot do, so the last
+  entries looked missing. A vertical wheel now moves the bar horizontally, and
+  whichever edge still has entries beyond it is faded.
+
+Backend
+-------
+
+- Added net.js, one scheduler shared by every service. Search Console,
+  Analytics and CallRail previously had no retry at all, so a single 429 became
+  a failed report; Ads gave up on any Retry-After longer than two seconds.
+  Reads now retry up to three attempts with bounded backoff, honour Retry-After
+  and give up rather than sleep when Google asks for longer than the ceiling.
+  Writes are never retried, so a review reply cannot publish twice.
+- Google Ads and Merchant Center now use the same per-scope, per-parameter
+  cache as Search Console and Analytics. Account lists are cached until the
+  user reloads them; reports are cached for an hour and, when a refresh fails,
+  the last good report is served instead of an error. Run still fetches fresh.
+- build.js follows the relative imports of every shipped script and fails if
+  one is missing from the ship list. net.js would otherwise have been left out
+  of the package, which loads unpacked and breaks once zipped.
+
+- Search Console, Analytics and CallRail moved out of the service worker into
+  gsc-api.js, ga-api.js and callrail-api.js, joining the Ads and Business
+  Profile modules. background.js drops from 2,026 lines to 1,705 and now holds
+  auth, caching, the tab helpers that need chrome.scripting, and routing.
+- Those modules brought 13 tests with them for logic that could not be tested
+  before: CallRail paging and its guard, the three transcript states, summary
+  rows that cannot go negative, property coverage, the impression-weighted
+  position fallback, GA4 pagination across accounts, and report body building.
+- Added a service-worker harness that loads background.js against stubbed
+  Chrome APIs and drives its message router, covering the wiring itself: that
+  each extracted module is reached, that a 429 is retried, that an identical
+  second call is served from cache, and that a failed refresh serves the last
+  good result marked stale.
+
