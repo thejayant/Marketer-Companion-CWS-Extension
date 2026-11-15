@@ -125,4 +125,5 @@ Full policy in `privacy.html`.
 ## Licence
 
 No licence is granted. All rights reserved. The source is published for
-transparency; it is not offered for reuse or redistribution.
+transparency; it is not offered for reuse or redistribution. See `LICENSE` at
+the repository root for the full terms.

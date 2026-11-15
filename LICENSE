@@ -1,0 +1,37 @@
+Copyright (c) 2026 Jayant. All rights reserved.
+
+No licence is granted.
+
+This source code is published for transparency: so that users of the Marketer
+Companion browser extension, and the reviewers who assess it, can read exactly
+what it does with their data. Publication here does not place it in the public
+domain and does not grant any licence to use it.
+
+You may read this source code and quote short extracts of it when discussing,
+reviewing or reporting problems with the extension.
+
+Without the prior written permission of the copyright holder, you may not:
+
+  - copy, reproduce or redistribute this source code, in whole or in
+    substantial part, whether modified or unmodified;
+  - publish, sublicense, sell or otherwise make it available to others;
+  - create derivative works from it;
+  - use it, or any part of it, in another product, service or extension.
+
+Forking this repository on GitHub, and the copying that GitHub itself performs
+to operate the service, are permitted to the extent that the GitHub Terms of
+Service require. No other rights follow from a fork.
+
+The names "Marketer Companion" and "Jayant", and the icons and other artwork in
+this repository, are not licensed for use by anyone else.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For permission to use this code, or any other enquiry, contact the copyright
+holder through the support channel listed on the extension's Chrome Web Store
+listing.
